@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PULSE // BATTERY</title>
+<link rel="stylesheet" href="style.css">
+<script>(function(){try{if(localStorage.getItem('pulse-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
+</head>
+<body>
+
+<div id="bridge-warning" class="bridge-warning hidden">
+  Shell bridge unavailable. Set this module's access mode to Full, or Custom with
+  "WebUI shell bridge" enabled, in Shevery → ADB Modules.
+  <div><button class="btn btn-ghost" id="bridge-retry-btn" style="margin-top:8px;">Retry connection</button></div>
+</div>
+
+<header class="instrument-header">
+  <div class="instrument-top-row">
+    <div>
+      <div class="product-name">PULSE<span class="slash">//</span>BATTERY</div>
+      <div class="product-sub">Battery diagnostics, standby control &amp; backup vault</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div id="bridge-badge" class="bridge-badge">checking…</div>
+      <button class="theme-toggle-btn" id="theme-toggle-btn" type="button">☾ dark</button>
+    </div>
+  </div>
+  <div class="gauge-row">
+    <div class="gauge" id="battery-gauge">
+      <svg viewBox="0 0 84 84" width="84" height="84">
+        <circle class="gauge-track" cx="42" cy="42" r="36"></circle>
+        <circle class="gauge-fill" id="gauge-fill-circle" cx="42" cy="42" r="36" stroke-dasharray="226" stroke-dashoffset="226"></circle>
+      </svg>
+      <div class="gauge-label">
+        <span class="gauge-value" id="gauge-value">--</span>
+        <span class="gauge-unit">%</span>
+      </div>
+    </div>
+    <div class="vitals-list">
+      <div class="vital-row"><span class="vital-key">Status</span><span class="vital-val" id="vital-status">—</span></div>
+      <div class="vital-row"><span class="vital-key">Temperature</span><span class="vital-val" id="vital-temp">—</span></div>
+      <div class="vital-row"><span class="vital-key">Access mode</span><span class="vital-val" id="vital-mode">—</span></div>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-strip">
+  <button class="tab-btn active" data-tab="vitals">Vitals</button>
+  <button class="tab-btn" data-tab="standby">Standby &amp; Doze</button>
+  <button class="tab-btn" data-tab="backup">Backup</button>
+  <button class="tab-btn" data-tab="restore">Restore</button>
+</nav>
+
+<main class="content">
+
+  <!-- VITALS -->
+  <section id="tab-vitals" class="panel-view active">
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Live wakelocks</div>
+        <button class="btn btn-secondary" id="scan-wakelocks-btn">Scan now</button>
+      </div>
+      <div class="card-desc">
+        Currently-held wakelocks from <code>dumpsys power</code>, mapped to package names.
+        This is a live snapshot, not a historical total — a wakelock only shows up here
+        while it's actually held.
+      </div>
+      <div id="wakelock-list" class="item-list">
+        <div class="empty-state">Run a scan to see what's currently holding a wakelock.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Alarm activity</div>
+        <button class="btn btn-secondary" id="scan-alarms-btn">Scan now</button>
+      </div>
+      <div class="card-desc">
+        Best-effort read of <code>dumpsys alarm</code> — apps with registered alarms and
+        wakeup counts. Parsing this output is inherently heuristic (format varies by
+        Android version); the raw dump is always in the console below.
+      </div>
+      <div id="alarm-list" class="item-list">
+        <div class="empty-state">Run a scan to see alarm activity.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Raw battery report</div>
+        <button class="btn btn-secondary" id="scan-report-btn">Generate for a package</button>
+      </div>
+      <div class="card-desc">
+        <code>dumpsys batterystats</code> for one package, unfiltered. Full battery-stats
+        parsing is genuinely unreliable across Android versions, so this tab intentionally
+        shows the real output instead of a confident-looking table that might be wrong.
+      </div>
+      <div class="field">
+        <input type="text" id="report-pkg-input" placeholder="package.name">
+      </div>
+      <div id="report-output" class="progress-box hidden"></div>
+    </div>
+  </section>
+
+  <!-- STANDBY & DOZE -->
+  <section id="tab-standby" class="panel-view">
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">App standby buckets</div>
+        <button class="btn btn-secondary" id="scan-buckets-btn">Scan installed apps</button>
+      </div>
+      <div class="card-desc">
+        The bucket controls how freely an app can run in the background. Tap a bucket
+        badge to change it — <strong>Restricted</strong> is the most aggressive and can
+        delay notifications significantly, so it asks for confirmation.
+      </div>
+      <div class="row-between" style="margin-bottom:9px;">
+        <input type="text" id="bucket-search" placeholder="Filter by package name…">
+        <label class="check-inline"><input type="checkbox" id="bucket-scope-user" checked> User apps only</label>
+      </div>
+      <div id="bucket-list" class="item-list">
+        <div class="empty-state">Run a scan to list installed apps.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Doze whitelist (battery optimization exemption)</div>
+      <div class="card-desc">
+        Apps on this list are exempt from Doze restrictions — the same effect as toggling
+        "Unrestricted" battery usage in system settings, just faster to manage in bulk.
+      </div>
+      <div id="doze-list" class="item-list"></div>
+      <div class="btn-row" style="margin-top:9px;">
+        <input type="text" id="doze-input" placeholder="package.name" style="flex:1;">
+        <button class="btn btn-secondary" id="doze-add-btn">Add</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Force Doze (for testing)</div>
+      <div class="card-desc">Manually push the device into or out of Doze, to test whether an app survives it.</div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="force-idle-btn">Force idle now</button>
+        <button class="btn btn-secondary" id="unforce-idle-btn">Unforce</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BACKUP -->
+  <section id="tab-backup" class="panel-view">
+    <div class="card" id="backup-capability-card">
+      <div class="card-title">Backup capability on this device</div>
+      <p class="muted" id="backup-capability-text" style="font-size:12px; line-height:1.6;">Checking…</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Select apps to back up</div>
+        <button class="btn btn-secondary" id="scan-backup-apps-btn">Scan installed apps</button>
+      </div>
+      <div class="row-between" style="margin-bottom:9px;">
+        <input type="text" id="backup-app-search" placeholder="Filter by package name…">
+        <label class="check-inline"><input type="checkbox" id="backup-scope-user" checked> User apps only</label>
+      </div>
+      <div id="backup-app-list" class="item-list">
+        <div class="empty-state">Run a scan to list installed apps.</div>
+      </div>
+      <div class="btn-row" style="margin-top:9px;">
+        <button class="btn btn-ghost" id="backup-select-all-btn">Select all filtered</button>
+        <button class="btn btn-ghost" id="backup-select-none-btn">Clear selection</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Export</div>
+      <label class="check-inline" style="margin-bottom:7px;"><input type="checkbox" id="backup-opt-apk" checked> APK files (base + splits)</label><br>
+      <label class="check-inline"><input type="checkbox" id="backup-opt-data" checked> App data — uses run-as for debuggable apps, root tar where rooted, skipped otherwise</label>
+      <div class="btn-row" style="margin-top:11px;">
+        <button class="btn btn-primary" id="backup-export-btn" disabled>Export selected (0)</button>
+      </div>
+      <div id="backup-progress" class="progress-box hidden"></div>
+    </div>
+  </section>
+
+  <!-- RESTORE -->
+  <section id="tab-restore" class="panel-view">
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Vaults on this device</div>
+        <button class="btn btn-secondary" id="vault-refresh-btn">Refresh</button>
+      </div>
+      <p class="muted" style="font-size:11.5px;">Location: <code>/sdcard/pulse-vault/</code></p>
+      <div id="vault-list" class="item-list">
+        <div class="empty-state">Loading…</div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="restore-detail-card">
+      <div class="card-title" id="restore-detail-title">Vault contents</div>
+      <div id="restore-app-list" class="item-list"></div>
+      <div class="btn-row" style="margin-top:9px;">
+        <button class="btn btn-primary" id="restore-btn">Restore selected</button>
+      </div>
+      <div id="restore-progress" class="progress-box hidden"></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="console-drawer" id="console-drawer">
+  <div class="console-header" id="console-toggle">
+    <span>Console</span>
+    <span class="console-count" id="console-count">0</span>
+  </div>
+  <div class="console-body" id="console-body"></div>
+</div>
+
+<div class="modal-backdrop hidden" id="confirm-backdrop">
+  <div class="modal">
+    <div class="modal-title" id="confirm-title">Confirm action</div>
+    <div class="modal-body" id="confirm-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

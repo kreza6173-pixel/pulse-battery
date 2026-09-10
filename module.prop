@@ -1,0 +1,7 @@
+id=pulse-battery
+name=PULSE // BATTERY
+version=v1.0.0
+versionCode=1
+author=kreza6173-pixel
+description=Battery & Wakelock Doctor with an integrated Backup Vault — dumpsys-based drain diagnostics, app-standby bucket and Doze whitelist control, plus APK/root/run-as data backup and restore.
+usesShellBridge=true
