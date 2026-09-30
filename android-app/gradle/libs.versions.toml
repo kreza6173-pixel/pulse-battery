@@ -23,4 +23,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-# AGP 9.x ships built-in Kotlin (bundles Kotlin 2.2.10); no standalone kotlin plugin is applied.
+# AGP 9.x ships built-in Kotlin (bundles Kotlin 2.2.10); the standalone
+# `org.jetbrains.kotlin.android` plugin must NOT be applied. For Compose on
+# Kotlin 2.x+, AGP requires the separate Compose compiler plugin instead.
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

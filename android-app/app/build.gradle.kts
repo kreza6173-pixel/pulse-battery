@@ -1,8 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
-    // AGP 9 built-in Kotlin: do NOT apply org.jetbrains.kotlin.android (it double-registers the
-    // `kotlin` extension -> "Cannot add extension with name 'kotlin'"). AGP compiles Kotlin with
-    // its bundled Kotlin 2.2.10; Kotlin JVM target defaults to 17 (>= Kotlin 2.0).
+    alias(libs.plugins.kotlin.compose)
+    // AGP 9 built-in Kotlin: do NOT apply org.jetbrains.kotlin.android. Kotlin 2.x Compose
+    // instead requires the org.jetbrains.kotlin.plugin.compose compiler plugin (above).
 }
 
 android {
