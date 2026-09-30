@@ -43,8 +43,8 @@
 - AGP 9.4.1, Gradle 9.6.0 (AGP 9.4 min), JDK 17 (temurin), Kotlin 2.2.10.
 - Compose BOM 2026.09.00, activity-compose 1.13.0, lifecycle-runtime-ktx 2.11.0, core-splashscreen 1.2.0.
 - Shizuku library 13.1.5 (api + provider).
-- compileSdk 36 (latest stable Android SDK as of env date 2026-09; API 37 SDK not yet stable-published),
-  targetSdk 36, minSdk 26.
+- compileSdk 37 (Android 17; AGP 9.4 supports up to API 37; Compose BOM 2026.09.00 requires 37),
+  targetSdk 37, minSdk 26.
 
 ## CI design (works without gradle-wrapper.jar)
 - `actions/setup-java@v5` temurin 17.

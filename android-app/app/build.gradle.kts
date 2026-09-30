@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "io.github.kreza6173pixel.pulsebattery"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.kreza6173pixel.pulsebattery"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -9,9 +9,12 @@
    extension and fails with "Cannot add extension with name 'kotlin'" (confirmed by Android Dev docs
    `migrate-to-built-in-kotlin`). Kotlin JVM target defaults to 17 (>= Kotlin 2.0); JDK 17 from setup-java.
 
-2. **compileSdk** = 36 (Android 16). AGP 9.4 supports up to API 37, but the API 37 SDK platform is
-   not yet stable-published (maven 404 in this env date 2026-09), so 36 is the latest STABLE SDK.
-   targetSdk = 36, minSdk = 26 (per spec; Shizuku API v13 drops pre-API 26 anyway).
+2. **compileSdk = 37 (Android 17, latest stable).** AGP 9.4 supports up to API 37 (confirmed by
+   AGP 9.4.0 release notes on developer.android.com). The Compose BOM 2026.09.00 (Compose 1.12.1)
+   `checkAarMetadata` *requires* compileSdk >= 37, so 36 is insufficient. API 37 platform +
+   build-tools 37.0.0 are installed in CI via `sdkmanager`. targetSdk = 37, minSdk = 26
+   (Shizuku API v13 drops pre-API 26 anyway). NOTE: my first assumption was that API 37 was
+   unavailable — it is available; the only thing unavailable was the wrong maven-mirror URL.
 
 3. **No gradle-wrapper.jar** committed. CI invokes `gradle` directly (setup-gradle `gradle-version`).
    `gradle/wrapper/gradle-wrapper.properties` committed only for local-dev reference (pinned 9.6.0).

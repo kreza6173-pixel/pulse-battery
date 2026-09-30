@@ -32,13 +32,13 @@ jobs:
           gradle-version: '9.6.0'
           cache-provider: basic
 
-      - name: Install Android SDK 36
+      - name: Install Android SDK 37
         run: |
           SDKMGR="${ANDROID_HOME:-${ANDROID_SDK_ROOT}}/cmdline-tools/latest/bin/sdkmanager"
           if [ ! -x "$SDKMGR" ]; then SDKMGR="$(command -v sdkmanager || true)"; fi
           if [ -z "$SDKMGR" ]; then echo "::error::sdkmanager not found"; exit 1; fi
           yes | "$SDKMGR" --licenses
-          yes | "$SDKMGR" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          yes | "$SDKMGR" "platforms;android-37" "build-tools;37.0.0" "platform-tools"
 
       - name: Build (test, lint, assemble)
         id: build
