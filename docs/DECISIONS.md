@@ -2,10 +2,12 @@
 
 1. **Toolchain** — AGP 9.4.1 (latest stable; 9.5.0 is alpha-only on Google Maven). Confirmed via
    `dl.google.com/.../gradle/maven-metadata.xml`. AGP 9.4.1 requires Gradle >= 9.6.0 and JDK 17
-   (verified from AGP 9.4.0 release notes on developer.android.com). Gradle pinned to 9.6.0 in CI
+   (verified from the AGP 9.4.0 compatibility table via Android Developers). Gradle pinned to 9.6.0 in CI
    via `gradle/actions/setup-gradle` `gradle-version` (no wrapper jar needed in CI).
-   AGP 9.4.1's POM declares Kotlin 2.2.10, so Kotlin Gradle plugin pinned to 2.2.10 to match
-   the AGP-tested Kotlin (avoids Compose-compiler/Kotlin mismatch).
+   **AGP 9 ships built-in Kotlin** (bundles Kotlin 2.2.10, per AGP 9.4.1 POM). The standalone
+   `org.jetbrains.kotlin.android` plugin is NOT applied — doing so double-registers the `kotlin`
+   extension and fails with "Cannot add extension with name 'kotlin'" (confirmed by Android Dev docs
+   `migrate-to-built-in-kotlin`). Kotlin JVM target defaults to 17 (>= Kotlin 2.0); JDK 17 from setup-java.
 
 2. **compileSdk** = 36 (Android 16). AGP 9.4 supports up to API 37, but the API 37 SDK platform is
    not yet stable-published (maven 404 in this env date 2026-09), so 36 is the latest STABLE SDK.

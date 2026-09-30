@@ -23,4 +23,4 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+# AGP 9.x ships built-in Kotlin (bundles Kotlin 2.2.10); no standalone kotlin plugin is applied.

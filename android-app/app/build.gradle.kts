@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    // AGP 9 built-in Kotlin: do NOT apply org.jetbrains.kotlin.android (it double-registers the
+    // `kotlin` extension -> "Cannot add extension with name 'kotlin'"). AGP compiles Kotlin with
+    // its bundled Kotlin 2.2.10; Kotlin JVM target defaults to 17 (>= Kotlin 2.0).
 }
 
 android {
@@ -29,10 +31,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlin {
-        jvmToolchain(17)
     }
 
     buildFeatures {

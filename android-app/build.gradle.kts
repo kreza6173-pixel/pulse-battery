@@ -1,4 +1,4 @@
 plugins {
     alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.android) apply false
+    // AGP 9 built-in Kotlin: no standalone kotlin plugin at root either.
 }
