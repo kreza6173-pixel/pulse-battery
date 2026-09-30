@@ -1,23 +1,44 @@
 # Decisions Log
 
-1. **Toolchain** — AGP 9.4.1 (latest stable; 9.5.0 is alpha-only on Google Maven). Confirmed via
-   `dl.google.com/.../gradle/maven-metadata.xml`. AGP 9.4.1 requires Gradle >= 9.6.0 and JDK 17
-   (verified from the AGP 9.4.0 compatibility table via Android Developers). Gradle pinned to 9.6.0 in CI
-   via `gradle/actions/setup-gradle` `gradle-version` (no wrapper jar needed in CI).
-   **AGP 9 ships built-in Kotlin** (bundles Kotlin 2.2.10, per AGP 9.4.1 POM). The standalone
-   `org.jetbrains.kotlin.android` plugin is NOT applied — doing so double-registers the `kotlin`
-   extension and fails with "Cannot add extension with name 'kotlin'" (confirmed by Android Dev docs
-   `migrate-to-built-in-kotlin`). Kotlin JVM target defaults to 17 (>= Kotlin 2.0); JDK 17 from setup-java.
+0. **[2026-09-30, M0 CI green] Toolchain pinned to compose-samples `v2025.12.00`.**
+   The previous toolchain (AGP 9.4.1 / Gradle 9.6.0 / compileSdk 37 / Compose BOM 2026.09.00) was
+   red: CI run `36788889668` failed in the job step **`Install Android SDK 37`** with
+   `Warning: Failed to find package 'platforms;android-37'` → `##[error]Process completed with exit code 1.`
+   `platforms;android-37` is not available on the stable SDK channel, so the whole build never started.
 
-2. **compileSdk = 37 (Android 17, latest stable).** AGP 9.4 supports up to API 37 (confirmed by
-   AGP 9.4.0 release notes on developer.android.com). The Compose BOM 2026.09.00 (Compose 1.12.1)
-   `checkAarMetadata` *requires* compileSdk >= 37, so 36 is insufficient. API 37 platform +
-   build-tools 37.0.0 are installed in CI via `sdkmanager`. targetSdk = 37, minSdk = 26
-   (Shizuku API v13 drops pre-API 26 anyway). NOTE: my first assumption was that API 37 was
-   unavailable — it is available; the only thing unavailable was the wrong maven-mirror URL.
+   Decision: use the **latest official sample release that still targets compileSdk 36**, namely
+   `android/compose-samples` tag **`v2025.12.00`** — a single consistent source for every version.
+
+   Evidence (fetched from
+   `https://raw.githubusercontent.com/android/compose-samples/v2025.12.00/Jetchat/gradle/libs.versions.toml`):
+   - `androidGradlePlugin = "8.13.1"`
+   - `kotlin = "2.2.21"`
+   - `androidx-compose-bom = "2025.12.00"`
+   - `androidx-activity-compose = "1.12.1"`
+   - `androidx-lifecycle-compose = "2.10.0"` (used for `lifecycle-runtime-ktx`)
+   - `compileSdk = "36"`, `minSdk = "23"`
+
+   Newer tags were rejected: `v2026.01.00`+ use `compileSdk = "37"`, `v2026.08.00`/`main` use AGP 9.x.
+
+   Supporting evidence:
+   - Gradle **8.13** — `gradle/wrapper/gradle-wrapper.properties` at `v2025.12.00` pins
+     `gradle-8.13-bin.zip`; AGP 8.13.x requires Gradle 8.13+. CI pins the same via
+     `gradle/actions/setup-gradle` `gradle-version: '8.13'`.
+   - JDK 17 — `.github/workflows/build-sample.yml` at `v2026.08.00` uses `actions/setup-java@v5`
+     with `java-version: 17`; unchanged in our CI.
+   - Plugin set — `Jetchat/app/build.gradle.kts` at `v2025.12.00` applies
+     `com.android.application` + `org.jetbrains.kotlin.android` + `org.jetbrains.kotlin.plugin.compose`.
+     Unlike AGP 9, **AGP 8.13.1 requires the standalone `org.jetbrains.kotlin.android` plugin**.
+   - No dependency in this catalog has metadata requiring `minCompileSdk` above 36 (BOM 2025.12.00,
+     activity-compose 1.12.1, lifecycle 2.10.0, core-splashscreen 1.2.0).
+
+1. ~~**Toolchain** — AGP 9.4.1 ...~~ **SUPERSEDED by decision 0.**
+
+2. ~~**compileSdk = 37 ...**~~ **SUPERSEDED by decision 0** (API 37 platform is not installable from
+   the stable SDK channel — see CI run `36788889668`).
 
 3. **No gradle-wrapper.jar** committed. CI invokes `gradle` directly (setup-gradle `gradle-version`).
-   `gradle/wrapper/gradle-wrapper.properties` committed only for local-dev reference (pinned 9.6.0).
+   `gradle/wrapper/gradle-wrapper.properties` committed only for local-dev reference (pinned 8.13).
 
 4. **CI cache provider = `basic`** (open-source MIT) instead of the default `enhanced` (proprietary)
    to keep the toolchain 100% FOSS-friendly tooling, matching the F-Droid spirit.

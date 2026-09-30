@@ -1,18 +1,17 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    // AGP 9 built-in Kotlin: do NOT apply org.jetbrains.kotlin.android. Kotlin 2.x Compose
-    // instead requires the org.jetbrains.kotlin.plugin.compose compiler plugin (above).
 }
 
 android {
     namespace = "io.github.kreza6173pixel.pulsebattery"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "io.github.kreza6173pixel.pulsebattery"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
