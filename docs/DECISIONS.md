@@ -69,3 +69,11 @@
 
 12. **lint `abortOnError = false`** for the first milestone(s) so trivial M0 warnings cannot block CI;
     revisit to strict once the codebase stabilizes.
+
+13. **XML app theme is `android:Theme.Material.Light.NoActionBar`, not `Theme.Material3.*`.**
+    The M0 skeleton has no `com.google.android.material` dependency, so `Theme.Material3.DayNight.NoActionBar`
+    and the `attr/colorPrimary` / `attr/colorOnPrimary` attrs do not exist and
+    `:app:processDebugResources` fails at link time (CI run `36792965261`:
+    `values.xml:334: error: resource attr/colorPrimary ... not found`). Adding the Material Views library
+    just for one style is not justified at M0; dark mode is already handled in Compose via
+    `PulseBatteryTheme` / `isSystemInDarkTheme()`. Revisit when XML themes gain real theming needs.
