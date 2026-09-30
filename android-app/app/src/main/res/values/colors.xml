@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="md_theme_primary">#ff5f6d</color>
+    <color name="md_theme_onPrimary">#ffffffff</color>
+    <color name="launcher_background">#ff1e2a</color>
+</resources>
