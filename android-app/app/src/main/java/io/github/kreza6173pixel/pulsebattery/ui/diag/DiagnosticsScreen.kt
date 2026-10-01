@@ -181,7 +181,7 @@ private fun InfoRow(label: String, value: String) {
 
 @Composable
 private fun WakeLockHeader(result: DiagResult<List<WakeLockEntry>>?) {
-    val count = (result as? DiagResult.Ok)?.value?.size ?: 0
+    val count = if (result is DiagResult.Ok) result.value.size else 0
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
