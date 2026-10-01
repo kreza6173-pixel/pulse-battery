@@ -106,8 +106,15 @@ class ExecBridge(private val context: Context) {
         val args = Shizuku.UserServiceArgs(component)
             .daemon(false)
             .debuggable(true)
+            // MANDATORY in 13.1.5. UserServiceArgs.forAdd() calls
+            // Objects.requireNonNull(mProcessName, "process name suffix must not be null")
+            // when it writes shizuku:user-service-arg-process-name, so omitting this made
+            // bindUserService throw NPE on every attempt. Verified from api-13.1.5.aar:
+            // no default value exists anywhere in the client library.
+            .processNameSuffix(USER_SERVICE_PROCESS_SUFFIX)
         note("connect() component=$component")
-        note("  args daemon=false debuggable=true tag=null versionCode=0 processNameSuffix=null")
+        note("  args daemon=false debuggable=true tag=null versionCode=0")
+        note("  processNameSuffix=$USER_SERVICE_PROCESS_SUFFIX")
         // Shizuku.bindUserService returns a package-private ShizukuServiceConnection, which cannot
         // be named outside rikka.shizuku. The result is therefore discarded, and the call is
         // written as a statement rather than wrapped in runCatching so that no Kotlin type
@@ -191,6 +198,13 @@ class ExecBridge(private val context: Context) {
         const val FAILURE_NOT_CONNECTED = "not connected to the Shizuku user service"
         const val FAILURE_NULL_RESULT = "the user service returned no result"
         const val MAX_LOG_LINES = 40
+
+        /**
+         * Suffix for the UserService process, `<package>:user_service`. 13.1.5 requires a
+         * non-null suffix but the client library supplies no default.
+         */
+        const val USER_SERVICE_PROCESS_SUFFIX = "user_service"
+
         val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
     }
 }

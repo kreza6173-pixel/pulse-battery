@@ -389,3 +389,43 @@
 
      **Deliberately not fixed blind.** The candidates I can see in the code are all plausible and
      none is confirmed; guessing between them would burn another push and another device round-trip.
+
+34. **[2026-10-01, M2, phone] CAUSE FOUND: `processNameSuffix` is MANDATORY in 13.1.5.**
+     The bind log shipped in `36813097142` paid for itself immediately. The user transcribed:
+
+     ```
+     bindUserService THREW java.lang.NullPointerException, message: process name suffix must not be null
+     ```
+
+     That message is Shizuku's own, and `api-13.1.5.aar` shows exactly where it comes from.
+     `UserServiceArgs` has one Bundle builder, `forAdd()Landroid/os/Bundle;`, and the constant pool
+     runs `Objects.requireNonNull` → `putString` → `shizuku:user-service-arg-process-name`
+     immediately after each other. So `forAdd()` unconditionally dereferences `mProcessName`:
+
+     ```java
+     args.putString(ShizukuApiConstants.USER_SERVICE_ARG_PROCESS_NAME,
+             Objects.requireNonNull(mProcessName, "process name suffix must not be null"));
+     ```
+
+     `mProcessName` is only ever set by `processNameSuffix(String)` — verified present as
+     `(Ljava/lang/String;)Lrikka/shizuku/Shizuku$UserServiceArgs;` — and there is **no default value
+     anywhere in the client library**. So in 13.1.5 the suffix is not optional, and omitting it makes
+     `bindUserService` throw on every single attempt. M1 and M2 both called `bindUserService`
+     without it; this is why the connection was never anything but DISCONNECTED.
+
+     Fix: `.processNameSuffix("user_service")`, added to the existing chain in
+     `ExecBridge.connect()`. The bind log is untouched and still reports the args, the bind result,
+     `peekUserService`, and both callbacks, so the next failure is equally legible.
+
+     **Left unset deliberately:** `tag(String)` and `version(int)` both exist in the AAR, but neither
+     is mandatory — `forAdd()` does `putString(key, null)` for the tag, which is legal, and
+     `versionCode` defaults to 0 and is just copied through. Setting them would be speculative.
+
+     **Main remaining risk, stated up front:** whether a non-empty suffix makes Shizuku start the
+     service in a *separate* process named `<package>:user_service`. If it does, the manifest also
+     needs `android:process=":user_service"` on the service, and the bind will fail again with a
+     different message. The server-side naming rule is not in the client AAR, so this could not be
+     confirmed offline; the bind log will show it immediately.
+
+     **Method note:** this cost four device round-trips purely because the first `connect()`
+     discarded its exception. One `note()` per state transition would have made it a single build.

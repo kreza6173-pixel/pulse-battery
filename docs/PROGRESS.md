@@ -56,29 +56,29 @@ Also fixed: the title was rendered twice (`R.string.app_name` in the `TopAppBar`
 `R.string.hello`, same literal). The `hello` string and its body `Text` are gone.
 The launcher icon was **not** touched.
 
-## M2 — Shizuku UserService (AIDL) + exec bridge + console: CI GREEN, **BLOCKED ON DEVICE**
+## M2 — Shizuku UserService (AIDL) + exec bridge + console: CI GREEN, fix awaiting phone verification
 
-### Phone result for run 36811639208
-- PASS: READY, uid 2000 (shell), **Open console** button shown.
-- PASS: console title not clipped in Persian.
-- **FAIL: the console header stays `User service: disconnected`.** Run, Cancel and both quick
-  buttons stay disabled, so `onServiceConnected` never fired and no command could run.
-  Steps 3-9 of the checklist are untestable until it connects.
-- Known minor issue: the second quick button's label (`getprop ro.build.version.sdk`) is clipped.
+### Phone results
+Run `36813097142` — the bind log found the cause on the first try:
+```
+bindUserService THREW java.lang.NullPointerException, message: process name suffix must not be null
+```
+**Cause:** `UserServiceArgs.processNameSuffix(...)` is **mandatory** in 13.1.5.
+`UserServiceArgs.forAdd()` calls
+`Objects.requireNonNull(mProcessName, "process name suffix must not be null")` when it writes
+`shizuku:user-service-arg-process-name`, and nothing in the client library supplies a default.
+Verified from `api-13.1.5.aar`; see DECISIONS.md decision 34. Header stayed `disconnected` as
+expected, and the second quick-button label (`getprop ro.build.version.sdk`) is still clipped.
 
-**Cause not yet known.** The bind path is at `exec/ExecBridge.kt:96` (`connect()`) and `:116`
-(`Shizuku.bindUserService`), args at `:106-108`, triggered on becoming READY from
-`MainActivity.kt:76-78`. The API usage was verified against `api-13.1.5.aar` and is correct, so
-this is behavioural, not a wrong call. Diagnosis was impossible because `connect()` swallowed the
-exception with `catch (_: Exception) { false }`, making every failure mode look identical — and it
-reset `CONNECTING` inside one frame so the intermediate state was never even visible.
+### Fix in this push
+`ExecBridge.connect()` now chains `.processNameSuffix("user_service")`. Bind log untouched — still
+reports the args, the bind result, `peekUserService`, and both callbacks. `tag` and `version` were
+deliberately left unset: the AAR shows neither is mandatory.
 
-### This change: diagnostics only, no blind fix
-`ExecBridge` now keeps a capped, timestamped `bindLog` recording: the component, the args, whether
-`bindUserService` returned or threw (exception class, message, cause), the result of
-`Shizuku.peekUserService`, and both `ServiceConnection` callbacks. The console renders the last 12
-lines so it can be read without logcat. Strings added in English and Persian. See DECISIONS.md
-decision 33.
+**Main remaining risk:** whether the suffix makes Shizuku start the service in a separate process
+named `<package>:user_service`. If so the manifest also needs `android:process=":user_service"` and
+the bind will fail again with a different message. The server-side rule is not in the client AAR,
+so it could not be confirmed offline.
 
 Pending: read the bind log on the phone, then fix the actual cause in a later push. The clipped
 quick-button label is also queued.
