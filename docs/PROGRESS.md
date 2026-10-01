@@ -63,6 +63,9 @@ CI:
 - `36808003294` — **failure**, `:app:compileDebugAidl`, two errors:
   `Couldn't find import for class ExecResult` and `Failed to resolve 'ExecResult'`. The
   result now travels as a `Bundle` instead; see DECISIONS.md decision 21.
+- `36808508335` — **failure**, `:app:compileDebugKotlin`, one error:
+  `ShizukuExecService.kt:56:18 Unresolved reference 'toBundle'`. A `getOrElse` inference
+  problem over a platform type; see DECISIONS.md decision 28.
 
 Written:
 - `src/main/aidl/.../exec/IUserService.aidl` — `exec(command, timeoutMs)` returning the result,

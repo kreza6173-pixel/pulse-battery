@@ -259,3 +259,22 @@
      Android type into the classpath of the hermetic JVM tests. Following decision 17, the history
      takes primitives and Strings and the screen does the mapping. Same reason `Redaction`,
      `ShellQuoting` and `OutputCollector` carry no Android imports at all.
+
+28. **[2026-10-01, M2] `Future.get()` + `getOrElse` silently widens to `Any?`.**
+     CI run `36808508335` failed `:app:compileDebugKotlin` with exactly one error:
+
+     ```
+     e: .../exec/ShizukuExecService.kt:56:18 Unresolved reference 'toBundle'.
+     ```
+
+     The code was `runCatching { task.get() }.getOrElse { ExecResult(...) }.toBundle()`.
+     `Future.get()` returns a *platform* type (`ExecResult!`), and
+     `getOrElse` is declared `fun <R, T : R> Result<T>.getOrElse(...): R`. With a flexible
+     `T`, inference is free to pick a wider `R`, the chain became `Any?`, and `.toBundle()`
+     no longer resolved. The identical call on line 44 — a direct `ExecResult(...)` receiver —
+     compiled fine, which is what identified this as inference and not a missing method.
+
+     Fix: an explicit `try`/`catch` with an explicit `val result: ExecResult`, which has no
+     inference step to get wrong. Generalisable lesson: **if a chain of `runCatching`/`getOrElse`
+     fails to resolve a member that the same call resolves directly elsewhere, suspect the
+     generic inference, not the method.**

@@ -44,16 +44,16 @@ class ShizukuExecService : Service() {
                 return ExecResult(EXIT_BAD_COMMAND, "", "empty command", false).toBundle()
             }
             val task = commandExecutor.submit { runOnce(cmd, timeoutMs) }
-            return runCatching { task.get() }
-                .getOrElse { failure ->
-                    ExecResult(
-                        EXIT_INTERNAL,
-                        "",
-                        "exec failed: ${failure.javaClass.simpleName}",
-                        false,
-                    )
-                }
-                .toBundle()
+            // Written as an explicit try/catch with an explicit type rather than
+            // runCatching/getOrElse: Future.get() returns a platform type, and getOrElse's
+            // `T : R` inference widens that to Any?, which broke `.toBundle()` in CI run
+            // 36808508335 with `Unresolved reference 'toBundle'`.
+            val result: ExecResult = try {
+                task.get()
+            } catch (e: Exception) {
+                ExecResult(EXIT_INTERNAL, "", "exec failed: ${e.javaClass.simpleName}", false)
+            }
+            return result.toBundle()
         }
 
         override fun cancel() {
