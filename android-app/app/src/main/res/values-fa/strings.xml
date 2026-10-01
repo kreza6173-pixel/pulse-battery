@@ -37,4 +37,5 @@
     <string name="console_truncated">خروجی کوتاه شد</string>
     <string name="console_bind_log">گزارش اتصال (تازه‌ترین در پایان)</string>
     <string name="console_bind_log_empty">هنوز تلاشی برای اتصال نشده است.</string>
+    <string name="console_bind_facts">در هر اتصال، وضعیت اتصال، نسخه سرور، شناسه کاربر و مجوز خوانده می‌شود.</string>
 </resources>

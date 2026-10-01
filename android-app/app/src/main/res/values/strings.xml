@@ -37,4 +37,5 @@
     <string name="console_truncated">output truncated</string>
     <string name="console_bind_log">Bind log (newest last)</string>
     <string name="console_bind_log_empty">No bind attempt yet.</string>
+    <string name="console_bind_facts">Reads pingBinder, server API version, uid and permission at each bind.</string>
 </resources>

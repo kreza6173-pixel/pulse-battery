@@ -429,3 +429,47 @@
 
      **Method note:** this cost four device round-trips purely because the first `connect()`
      discarded its exception. One `note()` per state transition would have made it a single build.
+
+35. **[2026-10-01, M2, phone] `processNameSuffix` fix worked; now `onServiceConnected` never fires.
+     The client AAR cannot answer why — and that is itself the finding.**
+     Phone result for `36814399485`: the NPE is gone. The bind log now reads
+     `processNameSuffix=user_service`, `bindUserService returned normally, peekUserService=-1
+     (bind is async)` — and then nothing. No `onServiceConnected`, no
+     `onServiceDisconnected`, the header sits on `connecting` indefinitely, buttons disabled.
+     The clipped label is fixed.
+
+     **Finding (1) — what the 13.1.5 AAR actually contains.** I scanned all 15 classes of
+     `api-13.1.5.aar` for every symbol involved in instantiating or locating a service class:
+     `Class`, `getConstructor`, `getDeclaredConstructor`, `newInstance`, `PackageManager`,
+     `getServiceInfo`, `ServiceInfo`, `bindService`, `startService`, `getApplicationInfo`,
+     `ClassLoader`, `loadClass`. **All absent from every class.** The single `forName` is in
+     `SystemServiceHelper`, which resolves system services and is unrelated.
+
+     So the client library **never instantiates the UserService class, never reads the manifest,
+     and never binds or starts anything.** It only marshals a `Bundle` of arguments over the
+     Shizuku binder. Which constructor is accepted, and whether the class must be declared in the
+     manifest, is decided by the **Shizuku server** — a different app
+     (`moe.shizuku.privileged.api`) that is not in this AAR and whose code cannot be read from
+     here. Answering (1) from the client AAR is therefore impossible, and I am not going to guess
+     it. Adding `android:process` would be exactly that guess.
+
+     **Our own service is not obviously at fault.** `ShizukuExecService`
+     (`exec/ShizukuExecService.kt:25`) has a no-arg constructor and its only field initialisers
+     are `Any()` (`:37`), `Executors.newCachedThreadPool()` (`:40`) and two `AtomicReference`s
+     (`:43`, `:46`), plus the `IUserService.Stub` anonymous object (`:48`). None touches a
+     `Context`, a resource, `Shizuku` or any Android static, so construction cannot throw on
+     those grounds.
+
+     **Finding (2) — diagnostics added, no logic changed.** `ExecBridge` now logs, at bind time and
+     again at t+10s: `pingBinder()`, the server API version, the server uid and
+     `checkSelfPermission()` (each rendered as its value, or `THREW <class>` if the call could not
+     be made). A watchdog on the main looper re-checks `peekUserService` at t+3s and t+10s and
+     emits `NO onServiceConnected after 10s` if the state is still `CONNECTING`. Method names were
+     verified present in the AAR before use: `pingBinder`, `getVersion`, `getUid`,
+     `checkSelfPermission`, `peekUserService`. All callbacks cancel the watchdog, so it cannot
+     fire after a successful bind.
+
+     **Self-inflicted errors caught before pushing:** the first draft passed `peek(args)` as the
+     second argument of a helper whose parameter is a *lambda* — a guaranteed compile error — and
+     referenced `PackageManager.PERMISSION_GRANTED` without importing it. Both were caught by
+     re-reading the diff, not by CI. Reading the diff is now part of the routine.

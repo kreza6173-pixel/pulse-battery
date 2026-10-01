@@ -3,7 +3,10 @@ package io.github.kreza6173pixel.pulsebattery.exec
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -54,9 +57,55 @@ class ExecBridge(private val context: Context) {
         bindLog = (bindLog + "$stamp  $line").takeLast(MAX_LOG_LINES)
     }
 
+    /**
+     * Watchdog: `onServiceConnected` never fired, and Shizuku gives no callback and no error if
+     * it fails to start the service. This re-checks state at 3s and 10s so the phone can report
+     * what actually happened instead of the UI just sitting on "connecting".
+     */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun noteShizukuFacts(where: String) {
+        note("$where pingBinder=${value("") { Shizuku.pingBinder() }}")
+        note(
+            "$where serverApiVersion=${value("?") { Shizuku.getVersion() }}" +
+                " uid=${value("?") { Shizuku.getUid() }}",
+        )
+        val perm = value("?") { Shizuku.checkSelfPermission() }
+        note("$where checkSelfPermission=$perm (PERMISSION_GRANTED=${PackageManager.PERMISSION_GRANTED})")
+    }
+
+    /** Renders a call's result, or why it could not be made, as one log-safe string. */
+    private inline fun value(fallback: String, call: () -> Any?): String =
+        runCatching { call() }.fold(
+            onSuccess = { "$it" },
+            onFailure = { "$fallback(THREW ${it.javaClass.simpleName})" },
+        )
+
+    private fun scheduleWatchdog(args: Shizuku.UserServiceArgs) {
+        cancelWatchdog()
+        mainHandler.postDelayed({
+            if (connectionState == ConnectionState.CONNECTING) {
+                note("  t+3s still CONNECTING, peekUserService=${value("?") { peek(args) }}")
+            }
+        }, WATCHDOG_EARLY_MS)
+        mainHandler.postDelayed({
+            if (connectionState == ConnectionState.CONNECTING) {
+                note("  t+10s NO onServiceConnected after 10s, still CONNECTING")
+                noteShizukuFacts("  t+10s")
+                note("  t+10s peekUserService=${value("?") { peek(args) }}")
+            }
+        }, WATCHDOG_MS)
+    }
+
+    private fun cancelWatchdog() = mainHandler.removeCallbacksAndMessages(null)
+
+    private fun peek(args: Shizuku.UserServiceArgs): Int =
+        Shizuku.peekUserService(args, serviceConnection)
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             connecting.set(false)
+            cancelWatchdog()
             if (binder == null) {
                 note("onServiceConnected name=$name but binder was NULL")
                 service = null
@@ -70,6 +119,7 @@ class ExecBridge(private val context: Context) {
 
         override fun onServiceDisconnected(name: ComponentName?) {
             connecting.set(false)
+            cancelWatchdog()
             service = null
             connectionState = ConnectionState.DISCONNECTED
             note("onServiceDisconnected name=$name -> DISCONNECTED")
@@ -136,12 +186,13 @@ class ExecBridge(private val context: Context) {
             return
         }
         // A normal return only means the transaction was sent; the callback is what matters.
-        val peeked = runCatching { Shizuku.peekUserService(args, serviceConnection) }
-            .fold(onSuccess = { "peekUserService=$it" }, onFailure = { "peekUserService THREW ${it.javaClass.simpleName}" })
-        note("  bindUserService returned normally, $peeked (bind is async)")
+        note("  bindUserService returned normally, peekUserService=${value("?") { peek(args) }} (bind is async)")
+        noteShizukuFacts("  bind ")
+        scheduleWatchdog(args)
     }
 
     fun disconnect() {
+        cancelWatchdog()
         // Signature verified from api-13.1.5.aar:
         //   unbindUserService(UserServiceArgs, ServiceConnection, boolean)V
         // The third argument is the server-API-version flag for the v13 user-service path.
@@ -204,6 +255,10 @@ class ExecBridge(private val context: Context) {
          * non-null suffix but the client library supplies no default.
          */
         const val USER_SERVICE_PROCESS_SUFFIX = "user_service"
+
+        /** No callback at all means the UI would sit on "connecting" forever. */
+        const val WATCHDOG_MS = 10_000L
+        const val WATCHDOG_EARLY_MS = 3_000L
 
         val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
     }

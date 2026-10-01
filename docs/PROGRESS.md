@@ -59,26 +59,25 @@ The launcher icon was **not** touched.
 ## M2 — Shizuku UserService (AIDL) + exec bridge + console: CI GREEN, fix awaiting phone verification
 
 ### Phone results
-Run `36813097142` — the bind log found the cause on the first try:
-```
-bindUserService THREW java.lang.NullPointerException, message: process name suffix must not be null
-```
-**Cause:** `UserServiceArgs.processNameSuffix(...)` is **mandatory** in 13.1.5.
-`UserServiceArgs.forAdd()` calls
-`Objects.requireNonNull(mProcessName, "process name suffix must not be null")` when it writes
-`shizuku:user-service-arg-process-name`, and nothing in the client library supplies a default.
-Verified from `api-13.1.5.aar`; see DECISIONS.md decision 34. Header stayed `disconnected` as
-expected, and the second quick-button label (`getprop ro.build.version.sdk`) is still clipped.
+Run `36814399485` — **the `processNameSuffix` fix worked and the clipped label is fixed**, but
+`onServiceConnected` still never fires. Bind log: `processNameSuffix=user_service`,
+`bindUserService returned normally, peekUserService=-1 (bind is async)`, then nothing. Header sits
+on `connecting`; buttons stay disabled.
 
-### Fix in this push
-`ExecBridge.connect()` now chains `.processNameSuffix("user_service")`. Bind log untouched — still
-reports the args, the bind result, `peekUserService`, and both callbacks. `tag` and `version` were
-deliberately left unset: the AAR shows neither is mandatory.
+**The client AAR cannot explain this, and that is a finding in itself.** All 15 classes of
+`api-13.1.5.aar` were scanned for `Class`, `getConstructor`, `getDeclaredConstructor`,
+`newInstance`, `PackageManager`, `getServiceInfo`, `ServiceInfo`, `bindService`, `startService`,
+`getApplicationInfo`, `ClassLoader`, `loadClass` — **all absent from every class**. The client
+library never instantiates the service class and never reads the manifest; it only marshals a
+`Bundle` over the Shizuku binder. Constructor rules and manifest requirements are decided by the
+Shizuku **server** app, which is not in this AAR. `android:process` is therefore NOT being added
+on a guess.
 
-**Main remaining risk:** whether the suffix makes Shizuku start the service in a separate process
-named `<package>:user_service`. If so the manifest also needs `android:process=":user_service"` and
-the bind will fail again with a different message. The server-side rule is not in the client AAR,
-so it could not be confirmed offline.
+### This push: diagnostics only
+`ExecBridge` additionally logs `pingBinder()`, server API version, server uid and
+`checkSelfPermission()` at bind time and at t+10s, plus a main-looper watchdog that re-checks
+`peekUserService` at t+3s and t+10s and emits `NO onServiceConnected after 10s`. Every callback
+cancels the watchdog. New string added in English and Persian. No bind logic changed.
 
 Pending: read the bind log on the phone, then fix the actual cause in a later push. The clipped
 quick-button label is also queued.

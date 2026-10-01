@@ -191,6 +191,11 @@ private fun BindLog(lines: List<String>) {
                 style = MaterialTheme.typography.labelLarge,
             )
             Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.console_bind_facts),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(4.dp))
             if (shown.isEmpty()) {
                 Text(
                     text = stringResource(R.string.console_bind_log_empty),
