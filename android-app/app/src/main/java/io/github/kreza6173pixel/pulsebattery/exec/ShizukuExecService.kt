@@ -1,9 +1,6 @@
 package io.github.kreza6173pixel.pulsebattery.exec
 
-import android.app.Service
-import android.content.Intent
 import android.os.Bundle
-import android.os.IBinder
 import java.io.InputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -12,8 +9,17 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * The Shizuku UserService. Lives in the Shizuku-spawned process, so commands run with
- * Shizuku's privileges (uid 2000 shell, or uid 0 root) rather than the app's own uid.
+ * The Shizuku UserService.
+ *
+ * THIS CLASS IS THE BINDER ITSELF, NOT an android.app.Service. Shizuku never binds an Android
+ * Service: its server spawns app_process, loads this APK, instantiates the class named in the
+ * ComponentName by reflection and casts the instance to IBinder
+ * (RikkaApps/Shizuku-API server-shared/src/main/java/rikka/shizuku/server/UserService.java,
+ * `service = (IBinder) serviceClass.newInstance();`). When this class extended Service the cast
+ * threw inside the Shizuku process, the service was never attached, and onServiceConnected
+ * never fired. Keep the public no-arg constructor; do not declare this in the manifest.
+ *
+ * Runs with Shizuku's privileges (uid 2000 shell, or uid 0 root), in a separate process.
  *
  * Guarantees:
  *  - commands run via `/system/bin/sh -c`, one at a time (held under a monitor);
@@ -22,21 +28,16 @@ import java.util.concurrent.atomic.AtomicReference
  *  - the child is destroyed when the timeout expires;
  *  - [cancel] destroys the child of the command currently running.
  */
-class ShizukuExecService : Service() {
+class ShizukuExecService : IUserService.Stub() {
 
     /**
-     * Serialises commands: exactly one at a time.
-     *
-     * This is a monitor rather than an executor on purpose. `ExecutorService.submit { ... }`
-     * resolves to the `submit(Runnable)` overload, which discards the lambda's result and
-     * returns `Future<*>`; the value then comes back as `Any!`. CI run 36809228035:
-     * `ShizukuExecService.kt:51:38 Initializer type mismatch: expected 'ExecResult',
-     * actual 'Any!'`. Holding a monitor has no generic inference to get wrong and is a
-     * stronger guarantee: nothing can be submitted past the lock.
+     * Serialises commands: exactly one at a time. A monitor rather than an executor on purpose:
+     * `ExecutorService.submit { ... }` resolves to `submit(Runnable)` and loses the result type
+     * (CI run 36809228035).
      */
     private val commandLock = Any()
 
-    /** Drains output streams. Cached so a short-lived daemon thread per stream. */
+    /** Drains output streams. Cached so a short-lived thread per stream. */
     private val drainExecutor: ExecutorService = Executors.newCachedThreadPool()
 
     /** The process currently running, so [cancel] can destroy it. */
@@ -45,33 +46,29 @@ class ShizukuExecService : Service() {
     /** The last process [cancel] destroyed, so the run can tell it was cancelled. */
     private val cancelled = AtomicReference<Process?>(null)
 
-    private val binder = object : IUserService.Stub() {
-
-        override fun exec(command: String?, timeoutMs: Int): Bundle {
-            val cmd = command.orEmpty()
-            if (cmd.isBlank()) {
-                return ExecResult(EXIT_BAD_COMMAND, "", "empty command", false).toBundle()
-            }
-            val result: ExecResult = synchronized(commandLock) {
-                runOnce(cmd, timeoutMs)
-            }
-            return result.toBundle()
+    override fun exec(command: String?, timeoutMs: Int): Bundle {
+        val cmd = command.orEmpty()
+        if (cmd.isBlank()) {
+            return ExecResult(EXIT_BAD_COMMAND, "", "empty command", false).toBundle()
         }
+        val result: ExecResult = synchronized(commandLock) {
+            runOnce(cmd, timeoutMs)
+        }
+        return result.toBundle()
+    }
 
-        override fun cancel() {
-            running.getAndSet(null)?.let { process ->
-                cancelled.set(process)
-                process.destroy()
-            }
+    override fun cancel() {
+        running.getAndSet(null)?.let { process ->
+            cancelled.set(process)
+            process.destroy()
         }
     }
 
-    override fun onBind(intent: Intent?): IBinder = binder
-
-    override fun onDestroy() {
-        binder.cancel()
+    /** Reserved Shizuku transaction 16777114: sent on unbindUserService(..., remove = true). */
+    override fun destroy() {
+        cancel()
         drainExecutor.shutdownNow()
-        super.onDestroy()
+        System.exit(0)
     }
 
     private fun runOnce(command: String, timeoutMs: Int): ExecResult {
@@ -95,8 +92,6 @@ class ShizukuExecService : Service() {
         runCatching { process.outputStream.close() }
         running.set(process)
 
-        // Explicitly typed: the lambdas return Unit, and letting listOf() infer the element type
-        // here is exactly the inference trap that cost two CI runs.
         val readers: List<Future<*>> = listOf(
             drainExecutor.submit { drain(process.inputStream, out) },
             drainExecutor.submit { drain(process.errorStream, err) },
@@ -151,8 +146,7 @@ class ShizukuExecService : Service() {
                 while (true) {
                     val n = reader.read(chunk)
                     if (n < 0) break
-                    // copyOfRange returns CharArray, which is NOT a CharSequence.
-                    // String(CharArray, offset, length) is the stdlib conversion and copies once.
+                    // CharArray is NOT a CharSequence; String(CharArray, offset, length) copies once.
                     if (!sink.appendAll(String(chunk, 0, n))) break
                 }
             }

@@ -39,16 +39,28 @@ class ExecBridge(private val context: Context) {
     private val connecting = AtomicBoolean(false)
     private var started = false
 
-    /** The component Shizuku is asked to bind. */
+    /**
+     * Only a carrier for package + class name. ShizukuExecService is NOT an Android Service and
+     * is not in the manifest: the Shizuku server instantiates it by reflection as an IBinder.
+     */
     private val component = ComponentName(context, ShizukuExecService::class.java)
+
+    /**
+     * One instance for bind, peek AND unbind. Building fresh args for unbind (as before) dropped
+     * the mandatory processNameSuffix: UserServiceArgs.forAdd() in 13.1.5 calls
+     * Objects.requireNonNull on it.
+     */
+    private val userServiceArgs: Shizuku.UserServiceArgs by lazy {
+        Shizuku.UserServiceArgs(component)
+            .daemon(false)
+            .debuggable(true)
+            .processNameSuffix(USER_SERVICE_PROCESS_SUFFIX)
+            .version(USER_SERVICE_VERSION)
+    }
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener { handleShizukuDied() }
 
-    /**
-     * Newest-last, capped, and shown on the console screen. The user has no logcat, and the
-     * bind call previously swallowed every exception, which made a persistent DISCONNECTED
-     * undiagnosable. Nothing here is redaction-relevant: it never contains a command.
-     */
+    /** Newest-last, capped, shown on the console screen. The user has no logcat. */
     var bindLog: List<String> by mutableStateOf(emptyList())
         private set
 
@@ -57,11 +69,7 @@ class ExecBridge(private val context: Context) {
         bindLog = (bindLog + "$stamp  $line").takeLast(MAX_LOG_LINES)
     }
 
-    /**
-     * Watchdog: `onServiceConnected` never fired, and Shizuku gives no callback and no error if
-     * it fails to start the service. This re-checks state at 3s and 10s so the phone can report
-     * what actually happened instead of the UI just sitting on "connecting".
-     */
+    /** Watchdog: Shizuku gives no callback and no error if it fails to start the service. */
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private fun noteShizukuFacts(where: String) {
@@ -81,33 +89,32 @@ class ExecBridge(private val context: Context) {
             onFailure = { "$fallback(THREW ${it.javaClass.simpleName})" },
         )
 
-    private fun scheduleWatchdog(args: Shizuku.UserServiceArgs) {
+    private fun scheduleWatchdog() {
         cancelWatchdog()
         mainHandler.postDelayed({
             if (connectionState == ConnectionState.CONNECTING) {
-                note("  t+3s still CONNECTING, peekUserService=${value("?") { peek(args) }}")
+                note("  t+3s still CONNECTING, peekUserService=${value("?") { peek() }}")
             }
         }, WATCHDOG_EARLY_MS)
         mainHandler.postDelayed({
             if (connectionState == ConnectionState.CONNECTING) {
                 note("  t+10s NO onServiceConnected after 10s, still CONNECTING")
                 noteShizukuFacts("  t+10s")
-                note("  t+10s peekUserService=${value("?") { peek(args) }}")
+                note("  t+10s peekUserService=${value("?") { peek() }}")
             }
         }, WATCHDOG_MS)
     }
 
     private fun cancelWatchdog() = mainHandler.removeCallbacksAndMessages(null)
 
-    private fun peek(args: Shizuku.UserServiceArgs): Int =
-        Shizuku.peekUserService(args, serviceConnection)
+    private fun peek(): Int = Shizuku.peekUserService(userServiceArgs, serviceConnection)
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             connecting.set(false)
             cancelWatchdog()
-            if (binder == null) {
-                note("onServiceConnected name=$name but binder was NULL")
+            if (binder == null || !binder.pingBinder()) {
+                note("onServiceConnected name=$name but binder was NULL or dead")
                 service = null
                 connectionState = ConnectionState.DISCONNECTED
                 return
@@ -153,24 +160,12 @@ class ExecBridge(private val context: Context) {
             return
         }
         connectionState = ConnectionState.CONNECTING
-        val args = Shizuku.UserServiceArgs(component)
-            .daemon(false)
-            .debuggable(true)
-            // MANDATORY in 13.1.5. UserServiceArgs.forAdd() calls
-            // Objects.requireNonNull(mProcessName, "process name suffix must not be null")
-            // when it writes shizuku:user-service-arg-process-name, so omitting this made
-            // bindUserService throw NPE on every attempt. Verified from api-13.1.5.aar:
-            // no default value exists anywhere in the client library.
-            .processNameSuffix(USER_SERVICE_PROCESS_SUFFIX)
-        note("connect() component=$component")
-        note("  args daemon=false debuggable=true tag=null versionCode=0")
+        note("connect() class=${component.className}")
+        note("  args daemon=false debuggable=true version=$USER_SERVICE_VERSION")
         note("  processNameSuffix=$USER_SERVICE_PROCESS_SUFFIX")
-        // Shizuku.bindUserService returns a package-private ShizukuServiceConnection, which cannot
-        // be named outside rikka.shizuku. The result is therefore discarded, and the call is
-        // written as a statement rather than wrapped in runCatching so that no Kotlin type
-        // inference ever has to name that return type.
+        // bindUserService returns a package-private type; discard it, never let inference name it.
         val bound = try {
-            Shizuku.bindUserService(args, serviceConnection)
+            Shizuku.bindUserService(userServiceArgs, serviceConnection)
             true
         } catch (e: Exception) {
             note("  bindUserService THREW ${e.javaClass.name}")
@@ -186,25 +181,18 @@ class ExecBridge(private val context: Context) {
             return
         }
         // A normal return only means the transaction was sent; the callback is what matters.
-        note("  bindUserService returned normally, peekUserService=${value("?") { peek(args) }} (bind is async)")
+        note("  bindUserService returned normally, peekUserService=${value("?") { peek() }} (bind is async)")
         noteShizukuFacts("  bind ")
-        scheduleWatchdog(args)
+        scheduleWatchdog()
     }
 
     fun disconnect() {
         cancelWatchdog()
-        // Signature verified from api-13.1.5.aar:
-        //   unbindUserService(UserServiceArgs, ServiceConnection, boolean)V
-        // The third argument is the server-API-version flag for the v13 user-service path.
-        // We only ever bind after reaching READY, which requires a v13+ server, so it is
-        // always true here. CI run 36809228035 caught this:
-        //   ExecBridge.kt:100:85 No value passed for parameter 'p2'.
+        // unbindUserService(UserServiceArgs, ServiceConnection, boolean remove)V.
+        // remove = true makes the server send transaction 16777114, i.e. our destroy(),
+        // which ends the user-service process.
         runCatching {
-            Shizuku.unbindUserService(
-                Shizuku.UserServiceArgs(component),
-                serviceConnection,
-                true,
-            )
+            Shizuku.unbindUserService(userServiceArgs, serviceConnection, true)
         }
         service = null
         connecting.set(false)
@@ -250,13 +238,12 @@ class ExecBridge(private val context: Context) {
         const val FAILURE_NULL_RESULT = "the user service returned no result"
         const val MAX_LOG_LINES = 40
 
-        /**
-         * Suffix for the UserService process, `<package>:user_service`. 13.1.5 requires a
-         * non-null suffix but the client library supplies no default.
-         */
+        /** 13.1.5 requires a non-null suffix; the client library supplies no default. */
         const val USER_SERVICE_PROCESS_SUFFIX = "user_service"
 
-        /** No callback at all means the UI would sit on "connecting" forever. */
+        /** Bump whenever ShizukuExecService changes, so Shizuku never reuses a stale record. */
+        const val USER_SERVICE_VERSION = 2
+
         const val WATCHDOG_MS = 10_000L
         const val WATCHDOG_EARLY_MS = 3_000L
 
