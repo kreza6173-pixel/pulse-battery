@@ -260,21 +260,65 @@
      takes primitives and Strings and the screen does the mapping. Same reason `Redaction`,
      `ShellQuoting` and `OutputCollector` carry no Android imports at all.
 
-28. **[2026-10-01, M2] `Future.get()` + `getOrElse` silently widens to `Any?`.**
-     CI run `36808508335` failed `:app:compileDebugKotlin` with exactly one error:
+28. **[2026-10-01, M2] `ExecutorService.submit { }` picked the `Runnable` overload and erased the
+     result. My first diagnosis of this was WRONG and is corrected here.**
+     Run `36808508335` failed with `ShizukuExecService.kt:56:18 Unresolved reference 'toBundle'`,
+     and I concluded it was `getOrElse`'s `T : R` inference widening a platform type. **That was
+     wrong.** The real cause was present from the start and only surfaced once the type was made
+     explicit in run `36808950548`:
 
      ```
-     e: .../exec/ShizukuExecService.kt:56:18 Unresolved reference 'toBundle'.
+     e: .../exec/ShizukuExecService.kt:51:38 Initializer type mismatch: expected 'ExecResult', actual 'Any!'.
      ```
 
-     The code was `runCatching { task.get() }.getOrElse { ExecResult(...) }.toBundle()`.
-     `Future.get()` returns a *platform* type (`ExecResult!`), and
-     `getOrElse` is declared `fun <R, T : R> Result<T>.getOrElse(...): R`. With a flexible
-     `T`, inference is free to pick a wider `R`, the chain became `Any?`, and `.toBundle()`
-     no longer resolved. The identical call on line 44 — a direct `ExecResult(...)` receiver —
-     compiled fine, which is what identified this as inference and not a missing method.
+     `ExecutorService` declares `submit(Runnable): Future<?>`, `submit(Callable<T>): Future<T>` and
+     `submit(Runnable, T): Future<T>`. A zero-parameter lambda returning a value fits **both**
+     `Runnable` and `Callable<T>`, and Kotlin selected `Runnable` — whose result is discarded, so
+     the future came back `Future<*>` and `get()` yielded `Any!`. Nothing to do with `getOrElse`.
 
-     Fix: an explicit `try`/`catch` with an explicit `val result: ExecResult`, which has no
-     inference step to get wrong. Generalisable lesson: **if a chain of `runCatching`/`getOrElse`
-     fails to resolve a member that the same call resolves directly elsewhere, suspect the
-     generic inference, not the method.**
+     Fix: serialisation now uses a plain monitor (`synchronized(commandLock) { ... }`) instead of an
+     executor. No overload to choose, no inference to get wrong, and the guarantee is stronger —
+     nothing can be submitted past the lock. The same file's drain futures are now explicitly
+     typed `val readers: List<Future<*>>` so the element type is never inferred either.
+
+     **How I got it wrong, and the generalisable lesson:** I explained away a platform-type error
+     with a plausible-sounding story about generics instead of proving it, and I only discovered the
+     real cause because a later run failed again with a *different* message from the same line. When
+     a fix changes the message but not the symptom, the previous diagnosis was wrong — re-derive it
+     rather than adjusting it. `compileDebugKotlin` reports a *variable* number of errors (1 in one
+     run, 5 in the next for identical source), so "the first error" is not a reliable sample of the
+     whole problem.
+
+29. **[2026-10-01, M2] Two more compile errors in the same run, both mechanical.**
+     From run `36809228035`:
+     - `ExecBridge.kt:100:85 No value passed for parameter 'p2'.` — `Shizuku.unbindUserService`
+       takes **three** arguments. Verified from `api-13.1.5.aar`:
+       `unbindUserService(UserServiceArgs, ServiceConnection, boolean)V`. The third is the
+       server-API-version flag for the v13 user-service path; we only ever bind after reaching
+       `READY`, which requires a v13+ server, so it is always `true`. `bindUserService` takes two
+       and was already correct.
+     - `ShizukuExecService.kt:150:41 None of the following candidates is applicable:
+       constructor(size: Int): CharArray` — `CharArray(chunk, 0, n)` is not a constructor; the only
+       constructors take a size. Copying a range of an existing array is `copyOfRange(0, n)`.
+
+     Also fixed in the same pass: `Int.coerceIn` only accepts two `Int` bounds, so
+     `timeoutMs.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS)` failed against the `Long` constants
+     (`250L`, `120_000L`). `toLong()` has to come first.
+
+30. **[2026-10-01, M2] `Redaction` rewritten: one sensitive key can hide another.**
+     While auditing the unit tests (which had still never been compiled or run) I found a real leak:
+     `binder error: password=hunter2` was **not** redacted. The token-level value pattern
+     `[^\s'"]+` matched `error: password=hunter2` as a whole and, because `error` is not sensitive,
+     the `password` inside it was never examined. `ConsoleHistoryTest` would have failed on it.
+
+     `Redaction` now works line by line and locates the key with `KEY_ASSIGN.findAll`, taking the
+     **first sensitive** match and masking from its value to end of line. That is simpler than the
+     three-regex version it replaces, fixes the leak, and still subsumes the `Authorization` header
+     case (authorization is in the key list). Short keys (`pin`, `otp`) now only match exactly,
+     because suffix matching them would mask innocent text such as `spin=1`.
+
+     **Method note:** the expected values in the new tests were computed with a throwaway script
+     that re-implements the pure logic, rather than hand-derived. Hand-derivation got three
+     literals wrong (including two apostrophe-escaping cases) and one assertion backwards. Pure
+     display/parse logic is cheap to model and cheap to check — do that instead of counting
+     characters by eye.

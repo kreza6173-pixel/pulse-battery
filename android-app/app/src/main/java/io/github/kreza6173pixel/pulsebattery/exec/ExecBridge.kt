@@ -97,7 +97,19 @@ class ExecBridge(private val context: Context) {
     }
 
     fun disconnect() {
-        runCatching { Shizuku.unbindUserService(Shizuku.UserServiceArgs(component), serviceConnection) }
+        // Signature verified from api-13.1.5.aar:
+        //   unbindUserService(UserServiceArgs, ServiceConnection, boolean)V
+        // The third argument is the server-API-version flag for the v13 user-service path.
+        // We only ever bind after reaching READY, which requires a v13+ server, so it is
+        // always true here. CI run 36809228035 caught this:
+        //   ExecBridge.kt:100:85 No value passed for parameter 'p2'.
+        runCatching {
+            Shizuku.unbindUserService(
+                Shizuku.UserServiceArgs(component),
+                serviceConnection,
+                true,
+            )
+        }
         service = null
         connecting.set(false)
         connectionState = ConnectionState.DISCONNECTED

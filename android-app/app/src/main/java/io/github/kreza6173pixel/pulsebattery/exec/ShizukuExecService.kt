@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference
  * Shizuku's privileges (uid 2000 shell, or uid 0 root) rather than the app's own uid.
  *
  * Guarantees:
- *  - commands run via `/system/bin/sh -c`, one at a time (single-threaded executor);
+ *  - commands run via `/system/bin/sh -c`, one at a time (held under a monitor);
  *  - stdout and stderr are drained concurrently, so a full pipe buffer cannot deadlock the child;
  *  - both streams are capped and set `truncated = true` once the cap is reached;
  *  - the child is destroyed when the timeout expires;
@@ -24,8 +24,17 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class ShizukuExecService : Service() {
 
-    /** Serialises commands: exactly one command at a time, in submission order. */
-    private val commandExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    /**
+     * Serialises commands: exactly one at a time.
+     *
+     * This is a monitor rather than an executor on purpose. `ExecutorService.submit { ... }`
+     * resolves to the `submit(Runnable)` overload, which discards the lambda's result and
+     * returns `Future<*>`; the value then comes back as `Any!`. CI run 36809228035:
+     * `ShizukuExecService.kt:51:38 Initializer type mismatch: expected 'ExecResult',
+     * actual 'Any!'`. Holding a monitor has no generic inference to get wrong and is a
+     * stronger guarantee: nothing can be submitted past the lock.
+     */
+    private val commandLock = Any()
 
     /** Drains output streams. Cached so a short-lived daemon thread per stream. */
     private val drainExecutor: ExecutorService = Executors.newCachedThreadPool()
@@ -43,15 +52,8 @@ class ShizukuExecService : Service() {
             if (cmd.isBlank()) {
                 return ExecResult(EXIT_BAD_COMMAND, "", "empty command", false).toBundle()
             }
-            val task = commandExecutor.submit { runOnce(cmd, timeoutMs) }
-            // Written as an explicit try/catch with an explicit type rather than
-            // runCatching/getOrElse: Future.get() returns a platform type, and getOrElse's
-            // `T : R` inference widens that to Any?, which broke `.toBundle()` in CI run
-            // 36808508335 with `Unresolved reference 'toBundle'`.
-            val result: ExecResult = try {
-                task.get()
-            } catch (e: Exception) {
-                ExecResult(EXIT_INTERNAL, "", "exec failed: ${e.javaClass.simpleName}", false)
+            val result: ExecResult = synchronized(commandLock) {
+                runOnce(cmd, timeoutMs)
             }
             return result.toBundle()
         }
@@ -68,13 +70,13 @@ class ShizukuExecService : Service() {
 
     override fun onDestroy() {
         binder.cancel()
-        commandExecutor.shutdownNow()
         drainExecutor.shutdownNow()
         super.onDestroy()
     }
 
     private fun runOnce(command: String, timeoutMs: Int): ExecResult {
-        val timeout = timeoutMs.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS).toLong()
+        // toLong() first: Int.coerceIn only takes two Int bounds.
+        val timeout = timeoutMs.toLong().coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS)
         val out = OutputCollector(MAX_OUTPUT_CHARS)
         val err = OutputCollector(MAX_OUTPUT_CHARS)
 
@@ -93,7 +95,9 @@ class ShizukuExecService : Service() {
         runCatching { process.outputStream.close() }
         running.set(process)
 
-        val readers = listOf(
+        // Explicitly typed: the lambdas return Unit, and letting listOf() infer the element type
+        // here is exactly the inference trap that cost two CI runs.
+        val readers: List<Future<*>> = listOf(
             drainExecutor.submit { drain(process.inputStream, out) },
             drainExecutor.submit { drain(process.errorStream, err) },
         )
@@ -147,7 +151,7 @@ class ShizukuExecService : Service() {
                 while (true) {
                     val n = reader.read(chunk)
                     if (n < 0) break
-                    if (!sink.appendAll(CharArray(chunk, 0, n))) break
+                    if (!sink.appendAll(chunk.copyOfRange(0, n))) break
                 }
             }
         } catch (_: Exception) {

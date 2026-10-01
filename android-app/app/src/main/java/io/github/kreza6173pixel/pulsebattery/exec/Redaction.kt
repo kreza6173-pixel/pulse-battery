@@ -4,9 +4,9 @@ package io.github.kreza6173pixel.pulsebattery.exec
  * Masks things that look like secrets before anything is shown on the console screen.
  * Pure Kotlin, no Android — unit-tested.
  *
- * This is a display filter only. It is deliberately conservative: it replaces the *value*
- * of an assignment whose key looks sensitive, and it does not try to be clever about
- * anything else, because a filter that tries to be clever about secrets misses them.
+ * This is a display filter only, not a security boundary. It is deliberately blunt: when a
+ * line contains a sensitive assignment, everything from that value to the end of the line is
+ * hidden. Under-masking a secret is unrecoverable; hiding one extra token is not.
  */
 object Redaction {
 
@@ -20,55 +20,40 @@ object Redaction {
         "passphrase", "otp", "pin",
     )
 
-    /** `KEY=VALUE`, `KEY: VALUE` and `export KEY=VALUE`, with KEY being a shell-ish name. */
-    private val ASSIGNMENT =
-        Regex("""(?<key>[A-Za-z_][A-Za-z0-9_.\-]*)(?<sep>\s*[=:]\s*)(?<val>[^\s'"]+)""")
-
-    private val QUOTED_VALUE =
-        Regex("""(?<key>[A-Za-z_][A-Za-z0-9_.\-]*)(?<sep>\s*[=:]\s*)(?<val>"[^"]*"|'[^']*')""")
-
     /**
-     * An `Authorization:` header carries the credential across the rest of the line
-     * (`Authorization: Bearer eyJhbGci...`), not just the next whitespace-delimited token.
-     * This rule therefore masks to end of line, and must run before the generic rules.
+     * Keys shorter than this only ever match exactly. Without it, `spin=1` would be masked
+     * because it ends with `pin`.
      */
-    private val AUTH_HEADER =
-        Regex("""(?i)\b((?:proxy-)?authorization)(\s*[:=]\s*)[^\r\n]+""")
+    private const val SUFFIX_MIN_LEN = 4
+
+    /** `KEY=`, `KEY: `, `KEY =` — the key and the separator; the value runs to end of line. */
+    private val KEY_ASSIGN =
+        Regex("""(?<key>[A-Za-z_][A-Za-z0-9_.\-]*)(?<sep>\s*[:=]\s*)""")
 
     private fun isSensitiveKey(key: String): Boolean {
         val k = key.lowercase()
-        return SENSITIVE_KEYS.any { k == it || k.endsWith("_$it") || k.endsWith("-$it") || k.endsWith(it) }
+        return SENSITIVE_KEYS.any { candidate ->
+            k == candidate ||
+                (candidate.length >= SUFFIX_MIN_LEN &&
+                    (k.endsWith("_$candidate") || k.endsWith("-$candidate") || k.endsWith(candidate)))
+        }
     }
 
     /**
-     * Returns [text] with sensitive assignment values replaced by [MASK].
+     * Returns [text] with the value of every sensitive assignment replaced by [MASK].
      * The original string is never mutated and the input may be any size.
      *
-     * Deliberately over-masks: once a sensitive key is seen, everything to the end of the
-     * value is hidden. Under-masking a secret is unrecoverable; hiding one extra token is not.
+     * Lines are handled one at a time and the key is located with `findAll` rather than a
+     * single greedy match. An earlier version matched one token at a time, which meant a
+     * harmless `error:` in `binder error: password=hunter2` swallowed the rest of the line and
+     * the password was never seen. Caught by `ConsoleHistoryTest`.
      */
     fun redact(text: String): String {
         if (text.isEmpty()) return text
-        var out = AUTH_HEADER.replace(text) { m ->
-            "${m.groupValues[1]}${m.groupValues[2]}$MASK"
+        return text.split('\n').joinToString("\n") { line ->
+            val hit = KEY_ASSIGN.findAll(line).firstOrNull { isSensitiveKey(it.groups["key"]!!.value) }
+            if (hit == null) line else line.substring(0, hit.range.last + 1) + MASK
         }
-        out = QUOTED_VALUE.replace(out) { m ->
-            val key = m.groups["key"]!!.value
-            if (isSensitiveKey(key)) {
-                "$key${m.groups["sep"]!!.value}\"$MASK\""
-            } else {
-                m.value
-            }
-        }
-        out = ASSIGNMENT.replace(out) { m ->
-            val key = m.groups["key"]!!.value
-            if (isSensitiveKey(key)) {
-                "$key${m.groups["sep"]!!.value}$MASK"
-            } else {
-                m.value
-            }
-        }
-        return out
     }
 
     /** Convenience for a whole command line shown in the history list. */

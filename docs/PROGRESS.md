@@ -63,9 +63,20 @@ CI:
 - `36808003294` — **failure**, `:app:compileDebugAidl`, two errors:
   `Couldn't find import for class ExecResult` and `Failed to resolve 'ExecResult'`. The
   result now travels as a `Bundle` instead; see DECISIONS.md decision 21.
-- `36808508335` — **failure**, `:app:compileDebugKotlin`, one error:
-  `ShizukuExecService.kt:56:18 Unresolved reference 'toBundle'`. A `getOrElse` inference
-  problem over a platform type; see DECISIONS.md decision 28.
+- `36808508335` — **failure**, `:app:compileDebugKotlin`:
+  `ShizukuExecService.kt:56:18 Unresolved reference 'toBundle'`. AIDL was now compiling.
+- `36808950548` — **failure**, `:app:compileDebugKotlin`:
+  `ShizukuExecService.kt:51:38 Initializer type mismatch: expected 'ExecResult', actual 'Any!'`.
+  Root cause was the `submit(Runnable)` overload, not `getOrElse`; see DECISIONS.md decision 28.
+- `36809228035` — **failure**, `:app:compileDebugKotlin`, **five** errors (identical source that
+  had reported one, because Kotlin reports a variable number of frontend errors):
+  `ExecBridge.kt:100:85 No value passed for parameter 'p2'` (unbindUserService arity),
+  `ShizukuExecService.kt:51:38` and `:77:42` / `:77:58` (Long vs Int in `coerceIn`), and
+  `:150:41` (`CharArray(chunk, 0, n)` is not a constructor). See decisions 29 and 30.
+
+None of the M2 unit tests have ever been compiled or run, because the build has always died at
+`compileDebugKotlin` first. Auditing them by hand found three wrong expectations and one real
+redaction leak (decision 30) that would each have turned the build red on the next attempt.
 
 Written:
 - `src/main/aidl/.../exec/IUserService.aidl` — `exec(command, timeoutMs)` returning the result,

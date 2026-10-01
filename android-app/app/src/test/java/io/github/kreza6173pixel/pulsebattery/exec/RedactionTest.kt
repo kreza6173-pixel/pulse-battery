@@ -45,8 +45,47 @@ class RedactionTest {
     }
 
     @Test
-    fun `a quoted secret value is masked but keeps its quotes`() {
-        assertEquals("token=\"${Redaction.MASK}\"", Redaction.redact("token=\"s3cr3t\""))
+    fun `a quoted secret value is masked`() {
+        assertEquals("token=${Redaction.MASK}", Redaction.redact("token=\"s3cr3t\""))
+    }
+
+    @Test
+    fun `a sensitive key is found even after an unrelated assignment`() {
+        // A single greedy match used to consume `error: password=hunter2` whole, so the
+        // password was never examined. See Redaction.redact.
+        assertEquals(
+            "binder error: password=${Redaction.MASK}",
+            Redaction.redact("binder error: password=hunter2"),
+        )
+    }
+
+    @Test
+    fun `only the sensitive part of a line is masked`() {
+        val out = Redaction.redact("before password=hunter2 after")
+        assertTrue(out.startsWith("before password="))
+        assertFalse(out.contains("hunter2"))
+        assertTrue(out.endsWith(Redaction.MASK))
+    }
+
+    @Test
+    fun `a short key does not match as a suffix`() {
+        // `spin=1` must not be masked just because it ends with `pin`.
+        assertEquals("spin=1", Redaction.redact("spin=1"))
+        assertEquals("id=2000", Redaction.redact("id=2000"))
+    }
+
+    @Test
+    fun `an exact short sensitive key still matches`() {
+        assertEquals("pin=${Redaction.MASK}", Redaction.redact("pin=1234"))
+        assertEquals("otp=${Redaction.MASK}", Redaction.redact("otp=1234"))
+    }
+
+    @Test
+    fun `a proxy authorization header is masked`() {
+        assertEquals(
+            "Proxy-Authorization: ${Redaction.MASK}",
+            Redaction.redact("Proxy-Authorization: Basic Zm9vYmFy"),
+        )
     }
 
     @Test
@@ -59,13 +98,6 @@ class RedactionTest {
     @Test
     fun `a private key assignment is masked`() {
         assertFalse(Redaction.redact("PRIVATE_KEY=-----BEGIN-----").contains("BEGIN"))
-    }
-
-    @Test
-    fun `masking keeps the rest of the line`() {
-        val out = Redaction.redact("before password=hunter2 after")
-        assertTrue(out.startsWith("before password="))
-        assertTrue(out.endsWith(" after"))
     }
 
     @Test

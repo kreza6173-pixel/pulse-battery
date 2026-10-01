@@ -38,12 +38,13 @@ class ShellQuotingTest {
     @Test
     fun `several single quotes are each escaped`() {
         // input `'''`  ->  body is three copies of the 4-char escape `'\''`  ->  wrapped
-        assertEquals("''\\'''\\'''\\''", ShellQuoting.quote("'''"))
+        assertEquals("''\\'''\\'''\\'''", ShellQuoting.quote("'''"))
     }
 
     @Test
     fun `only a quote is handled specially`() {
-        assertEquals("''", ShellQuoting.quote("'"))
+        // `'` -> body is the 4-char escape `'\''` -> wrapped it is 6 chars
+        assertEquals("''\\'''", ShellQuoting.quote("'"))
     }
 
     @Test
@@ -90,20 +91,25 @@ class ShellQuotingTest {
     @Test
     fun `joinArgs cannot be tricked into starting a second command`() {
         // The classic injection: an argument that tries to close the quote and append its own
-        // command. Every apostrophe is escaped, so the apostrophe count stays even and the
-        // result is still exactly one argument.
+        // command. joinArgs quotes *every* element, including the command word, so the result
+        // is one flat argv line and the hostile argument stays a single literal argument.
         val evil = "x'; rm -rf /; echo '"
         val line = ShellQuoting.joinArgs(listOf("echo", evil))
-        assertTrue(line.startsWith("echo '"))
+        assertTrue(line.startsWith("'echo' '"))
         assertTrue(line.endsWith("''"))
-        assertEquals("unbalanced apostrophes in: $line", 0, line.count { it == '\'' } % 2)
+        // The hostile argument occupies the tail and does not spill over into a second word.
+        assertEquals("'echo' " + ShellQuoting.quote(evil), line)
     }
 
     @Test
-    fun `an injected command cannot unbalance the quoting`() {
+    fun `an injected quote cannot terminate the quoted region`() {
+        // Note: an even apostrophe count is NOT the invariant. Each input apostrophe expands
+        // to the 4-char escape `'\''`, which itself contains three apostrophes, so the count is
+        // 2 + 3n. The invariant that matters is that no *bare* apostrophe survives in the body.
         for (evil in listOf("a'b", "';id", "\";id", "`id`", "\$(id)", "a\nrm -rf /")) {
-            val quoted = ShellQuoting.quote(evil)
-            assertEquals("unbalanced apostrophes for [$evil]", 0, quoted.count { it == '\'' } % 2)
+            val body = ShellQuoting.quote(evil).removeSurrounding("'")
+            val bare = body.replace("'\\''", "").count { it == '\'' }
+            assertEquals("bare apostrophe survived for [$evil] in [$body]", 0, bare)
         }
     }
 

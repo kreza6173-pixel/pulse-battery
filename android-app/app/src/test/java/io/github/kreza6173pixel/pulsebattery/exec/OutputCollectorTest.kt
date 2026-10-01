@@ -92,10 +92,11 @@ class OutputCollectorTest {
 
     @Test
     fun `multi-byte text is appended one char at a time`() {
+        // "سلام" is 4 chars; the cap keeps the first 3 (seen, lam, alef) and drops the meem.
         val out = OutputCollector(3)
-        out.appendAll("سلام") // 4 chars; the cap cuts the last one
+        out.appendAll("سلام")
         assertEquals(3, out.size)
-        assertEquals("سل", out.text)
+        assertEquals("سلا", out.text)
         assertTrue(out.truncated)
     }
 }
