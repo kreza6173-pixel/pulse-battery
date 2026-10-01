@@ -22,4 +22,17 @@
     <string name="action_open_manager">باز کردن شیزوکو</string>
     <string name="action_request_permission">اعطای مجوز</string>
     <string name="action_refresh">بررسی دوباره</string>
+
+    <string name="home_open_console">باز کردن کنسول</string>
+    <string name="console_title">PULSE // CONSOLE</string>
+    <string name="console_command_label">دستور شل</string>
+    <string name="console_run">اجرا</string>
+    <string name="console_cancel">لغو</string>
+    <string name="console_disconnected">قطع</string>
+    <string name="console_connecting">در حال اتصال…</string>
+    <string name="console_connected">متصل</string>
+    <string name="console_state_format">سرویس کاربر: %1$s</string>
+    <string name="console_meta_format">خروج %1$d · %2$d میلی‌ثانیه</string>
+    <string name="console_meta_no_exit">اجرا نشد</string>
+    <string name="console_truncated">خروجی کوتاه شد</string>
 </resources>

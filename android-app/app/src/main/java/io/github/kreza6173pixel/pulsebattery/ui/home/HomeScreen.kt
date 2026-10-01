@@ -27,7 +27,11 @@ import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuUidKind
  * under the `fa` (RTL) locale.
  */
 @Composable
-fun HomeScreen(runtime: ShizukuRuntime, modifier: Modifier = Modifier) {
+fun HomeScreen(
+    runtime: ShizukuRuntime,
+    modifier: Modifier = Modifier,
+    onOpenConsole: () -> Unit = {},
+) {
     val state = runtime.state
 
     Column(
@@ -39,6 +43,18 @@ fun HomeScreen(runtime: ShizukuRuntime, modifier: Modifier = Modifier) {
         StateCard(runtime)
         StateAction(runtime, state)
         UidRow(runtime)
+        // The console needs the Shizuku UserService, so it is only offered once READY.
+        if (state == ShizukuState.READY) {
+            Button(
+                onClick = onOpenConsole,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(R.string.home_open_console),
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+                )
+            }
+        }
         RefreshButton(runtime)
     }
 }

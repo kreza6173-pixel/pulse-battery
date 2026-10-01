@@ -169,3 +169,70 @@
      throws `AndroidRuntimeException` at runtime. Every launch goes through one private
      `startIntent(...)` helper that adds the flag. This is a runtime-only defect — CI compiles it
      fine either way — so it would never have been caught by the build.
+
+20. **[2026-10-01, M2] AIDL re-enabled via `buildFeatures { aidl = true }`.**
+     AGP 8 disables AIDL generation by default, so without this flag `src/main/aidl/` is silently
+     ignored and `IUserService` would never be generated. This is a build-file change only; it does
+     not touch the pinned toolchain (same AGP 8.13.1, same Kotlin, same compileSdk 36).
+
+21. **[2026-10-01, M2] `ExecResult` is a Kotlin Parcelable; the AIDL deliberately omits
+     `parcelable ExecResult;`.**
+     Writing `parcelable ExecResult;` in a `.aidl` file makes the AIDL compiler emit an empty Java
+     stub class with the same fully-qualified name, which clashes with a Kotlin implementation.
+     Instead the interface references the Kotlin `ExecResult` directly, and AIDL marshals it through
+     `Parcelable.writeToParcel` / `Parcelable.CREATOR` at runtime — the same documented mechanism an
+     AIDL interface uses for any Java-defined Parcelable. `ExecResult.kt` therefore carries a
+     `@JvmField CREATOR`, and the field order in `writeToParcel` must match the read order in
+     `createFromParcel`.
+
+     **UNVERIFIED until CI:** whether `aidl` accepts an undeclared Parcelable as a return type. If
+     `:app:compileDebugAidl` fails to resolve `ExecResult`, the fallback is to change the signature
+     to `int exec(String command, int timeoutMs, out String stdout, out String stderr,
+     out boolean truncated)`, which is unambiguously supported and carries the same data.
+
+22. **[2026-10-01, M2] The `bindUserService` return value is discarded, on purpose.**
+     Read from the bytecode of `api-13.1.5.aar`, not from memory:
+     `Shizuku` is `public` (class access `0x0021`), but `ShizukuServiceConnection` and
+     `ShizukuServiceConnections` are **package-private** (class access `0x0020`, no `ACC_PUBLIC`).
+     So the type of `Shizuku.bindUserService(...)`'s result cannot be named from application code.
+     The call is written as a bare statement inside a `try`/`catch` rather than wrapped in
+     `runCatching`, because `runCatching`'s type parameter would force Kotlin to name that
+     inaccessible return type. The API surface actually used was read from the AAR:
+     `Shizuku.UserServiceArgs(ComponentName)` with fluent `daemon(boolean)`, `debuggable(boolean)`,
+     `version(int)`, `processNameSuffix(String)`; `Shizuku.bindUserService(UserServiceArgs,
+     ServiceConnection)`; `Shizuku.unbindUserService(UserServiceArgs, ServiceConnection)`.
+
+23. **[2026-10-01, M2] `Shizuku.newProcess` is not used.** The brief forbade it and the code
+     complies: there is no reference to `newProcess` or `ShizukuRemoteProcess` anywhere. Every
+     command runs inside `ShizukuExecService`, the declared UserService.
+
+24. **[2026-10-01, M2] No new dependency.**
+     The console screen needs `kotlinx.coroutines.Dispatchers.IO` and `withContext`, and
+     `rememberCoroutineScope`. Neither is declared here: `androidx.compose.runtime:runtime` exposes
+     `kotlinx-coroutines-core` as an `api` dependency, so coroutines are already on the compile
+     classpath through the existing Compose dependencies. The version catalog is unchanged.
+     Coroutines are also the reason the blocking AIDL call is not on the main thread.
+
+25. **[2026-10-01, M2] Shell quoting is unconditional.**
+     `ShellQuoting.quote` always wraps in single quotes rather than only when the argument looks
+     unsafe. A "quote if needed" optimisation leaves user input unquoted for whatever characters
+     the author believed were safe, and that judgement is exactly what becomes an injection later.
+     Always quoting makes the helper safe by construction and testable without a shell.
+     `ExecResult` for a command is the *raw* line the user typed — this is an intentional
+     shell console, so the operator supplies the syntax; what M2 guarantees is that no *other*
+     part of the app concatenates user input into a command. The only commands the app itself
+     builds are the two read-only self-test presets, which are constants.
+
+26. **[2026-10-01, M2] Redaction happens once, at insert time, and over-masks on purpose.**
+     `ConsoleHistory.record(...)` stores only redacted text; raw stdout/stderr is never retained,
+     so a secret cannot resurface through a later render. `Redaction` masks the value of an
+     assignment whose key looks sensitive, and masks an `Authorization` header to end of line —
+     an earlier version masked only `\S+` and leaked the token in
+     `Authorization: Bearer eyJ...`, which the `RedactionTest` caught before pushing. Where the
+     filter has to choose, it hides extra text rather than risking a leak.
+
+27. **[2026-10-01, M2] `ConsoleHistory` takes plain values, not `ExecOutcome`.**
+     `ExecOutcome` carries an `ExecResult`, which is a `Parcelable`. Depending on it would pull an
+     Android type into the classpath of the hermetic JVM tests. Following decision 17, the history
+     takes primitives and Strings and the screen does the mapping. Same reason `Redaction`,
+     `ShellQuoting` and `OutputCollector` carry no Android imports at all.

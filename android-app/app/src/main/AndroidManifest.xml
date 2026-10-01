@@ -28,6 +28,14 @@
             android:exported="true"
             android:multiprocess="false" />
 
+        <!-- The Shizuku UserService. Shizuku starts this component from its own uid
+             (2000 shell or 0 root), so it has to be exported. No android:process, so it
+             runs in the app's own process; Shizuku.UserServiceArgs.processNameSuffix is
+             not used, which keeps the setup to a single process. -->
+        <service
+            android:name=".exec.ShizukuExecService"
+            android:exported="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

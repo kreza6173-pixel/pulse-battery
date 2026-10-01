@@ -22,4 +22,17 @@
     <string name="action_open_manager">Open Shizuku</string>
     <string name="action_request_permission">Grant permission</string>
     <string name="action_refresh">Re-check</string>
+
+    <string name="home_open_console">Open console</string>
+    <string name="console_title">PULSE // CONSOLE</string>
+    <string name="console_command_label">Shell command</string>
+    <string name="console_run">Run</string>
+    <string name="console_cancel">Cancel</string>
+    <string name="console_disconnected">disconnected</string>
+    <string name="console_connecting">connecting…</string>
+    <string name="console_connected">connected</string>
+    <string name="console_state_format">User service: %1$s</string>
+    <string name="console_meta_format">exit %1$d · %2$d ms</string>
+    <string name="console_meta_no_exit">did not run</string>
+    <string name="console_truncated">output truncated</string>
 </resources>

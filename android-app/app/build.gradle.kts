@@ -34,6 +34,9 @@ android {
 
     buildFeatures {
         compose = true
+        // AGP 8.x disables AIDL generation by default. Required by the Shizuku
+        // UserService interface in src/main/aidl. See docs/DECISIONS.md decision 20.
+        aidl = true
     }
 
     packaging {
