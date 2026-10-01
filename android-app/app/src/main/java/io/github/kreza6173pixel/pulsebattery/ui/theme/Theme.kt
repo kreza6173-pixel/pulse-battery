@@ -11,6 +11,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+@Composable
 fun PulseBatteryTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()

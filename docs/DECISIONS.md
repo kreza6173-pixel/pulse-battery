@@ -77,3 +77,19 @@
     `values.xml:334: error: resource attr/colorPrimary ... not found`). Adding the Material Views library
     just for one style is not justified at M0; dark mode is already handled in Compose via
     `PulseBatteryTheme` / `isSystemInDarkTheme()`. Revisit when XML themes gain real theming needs.
+
+14. **Compose API surface must match the resolved BOM, not the newest-looking code.**
+    Compose BOM `2025.12.00` resolves `androidx.compose.material3:material3` to **1.4.0** (verified by
+    reading `compose-bom-2025.12.00.pom` from Google Maven). In 1.4.0 `SmallTopAppBar` **no longer
+    exists** — verified directly against the artifact: `material3-android-1.4.0.aar` →
+    `androidx/compose/material3/AppBarKt.class` contains 0 occurrences of `SmallTopAppBar` and 76 of
+    `TopAppBar`. CI run `36793279060` failed `:app:compileDebugKotlin` with
+    `MainActivity.kt:11:35 Unresolved reference 'SmallTopAppBar'`. Replaced with `TopAppBar`
+    (with `@OptIn(ExperimentalMaterial3Api::class)`).
+
+15. **`PulseBatteryTheme` was missing `@Composable`.** Same run reported
+    `Theme.kt:14:5 Functions which invoke @Composable functions must be marked with the @Composable
+    annotation` plus 3 follow-on "invocations can only happen from the context of a @Composable
+    function" errors at lines 15, 16 and 22. This was a genuine defect, not cascade from the
+    `SmallTopAppBar` error (separate file, separate root cause) — it had never been caught because
+    the build previously died at the SDK-install step before compiling.
