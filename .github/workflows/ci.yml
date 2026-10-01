@@ -49,6 +49,18 @@ jobs:
           echo "gradle_exit=$code" >> "$GITHUB_OUTPUT"
           exit $code
 
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          # `uses:` steps ignore defaults.run.working-directory, so this path is
+          # resolved from the repository root. Module `:app` lives at
+          # android-app/app, so AGP writes the APK to
+          # android-app/app/build/outputs/apk/debug/app-debug.apk.
+          path: android-app/**/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,10 +78,3 @@ jobs:
             tail -n 40 "${RUNNER_TEMP}/build.log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload Debug APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
