@@ -10,7 +10,7 @@
     <string name="state_permission_needed_body">Shizuku is running. This app still needs permission to use it. Tap Grant permission and accept the dialog inside Shizuku.</string>
     <string name="state_rationale_hint">Shizuku reports that you declined the last request. Open Shizuku and enable PULSE // BATTERY in its permission list.</string>
     <string name="state_ready_title">Shizuku ready</string>
-    <string name="state_ready_body">Shizuku is running and this app has permission. Command execution is not part of this milestone yet.</string>
+    <string name="state_ready_body">Shizuku is running and this app has permission. Commands run through the Shizuku user service.</string>
 
     <string name="state_uid_value">Shizuku uid: %1$d (%2$s)</string>
     <string name="uid_root">root</string>
@@ -38,4 +38,6 @@
     <string name="console_bind_log">Bind log (newest last)</string>
     <string name="console_bind_log_empty">No bind attempt yet.</string>
     <string name="console_bind_facts">Reads pingBinder, server API version, uid and permission at each bind.</string>
+    <string name="console_bind_log_show">Show log</string>
+    <string name="console_bind_log_hide">Hide log</string>
 </resources>

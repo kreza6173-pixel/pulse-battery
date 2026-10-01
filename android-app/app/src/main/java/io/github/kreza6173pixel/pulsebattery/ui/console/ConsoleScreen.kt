@@ -2,6 +2,7 @@ package io.github.kreza6173pixel.pulsebattery.ui.console
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,22 +11,34 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.kreza6173pixel.pulsebattery.R
 import io.github.kreza6173pixel.pulsebattery.exec.ConnectionState
@@ -38,8 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The complete list of commands the built-in self-test may run. Both are read-only: `id`
- * prints the uid, `getprop` reads one system property. Nothing here may change system state.
+ * The complete list of commands the built-in self-test may run. Both are read-only.
  */
 private val SELF_TEST_COMMANDS = listOf("id", "getprop ro.build.version.sdk")
 
@@ -48,8 +60,31 @@ private const val TIMEOUT_MS = 15_000
 private const val MAX_BIND_LOG_LINES = 12
 
 /**
- * Console screen. Only reachable when Shizuku is READY, because every command here needs the
- * UserService. All padding is start/end so the layout mirrors under the `fa` locale.
+ * Shell text (commands, output, bind log) is always LTR + monospace. Under the fa locale the
+ * bidi algorithm otherwise reorders it: "bridge start()" rendered as "()bridge start".
+ */
+@Composable
+private fun monoStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(
+    fontFamily = FontFamily.Monospace,
+    textDirection = TextDirection.Ltr,
+    textAlign = TextAlign.Left,
+)
+
+@Composable
+private fun MonoText(text: String, color: Color = Color.Unspecified) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Text(
+            text = text,
+            style = monoStyle(),
+            color = color,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * Console screen. Only reachable when Shizuku is READY. The whole screen is one LazyColumn so
+ * nothing can be squeezed off the bottom; newest result is shown first, under the controls.
  */
 @Composable
 fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
@@ -81,88 +116,107 @@ fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
         }
     }
 
-    val connected = bridge.connectionState == ConnectionState.CONNECTED
+    val state = bridge.connectionState
+    val connected = state == ConnectionState.CONNECTED
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+    // Collapsed once connected (it has done its job), open again on any other state.
+    var showLog by remember { mutableStateOf(true) }
+    LaunchedEffect(state) { showLog = state != ConnectionState.CONNECTED }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ConnectionLabel(bridge.connectionState)
-
-        BindLog(bridge.bindLog)
-
-        OutlinedTextField(
-            value = command,
-            onValueChange = { command = it },
-            enabled = !busy,
-            singleLine = true,
-            label = { Text(stringResource(R.string.console_command_label)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(
-                onClick = { run(command.trim()) },
-                enabled = !busy && connected && command.isNotBlank(),
-                modifier = Modifier.weight(1f),
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.console_run),
-                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
-                )
-            }
-            OutlinedButton(
-                onClick = { bridge.cancel() },
-                enabled = busy,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = stringResource(R.string.console_cancel),
-                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
-                )
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SELF_TEST_COMMANDS.forEach { preset ->
-                OutlinedButton(
-                    onClick = { run(preset) },
-                    enabled = !busy && connected,
-                    modifier = Modifier.weight(1f),
-                ) {
+                ConnectionLabel(state, Modifier.weight(1f))
+                TextButton(onClick = { showLog = !showLog }) {
                     Text(
-                        text = preset,
-                        style = MaterialTheme.typography.labelSmall,
-                        textAlign = TextAlign.Center,
-                        // `getprop ro.build.version.sdk` needs three lines in a half-width
-                        // button; at maxLines = 2 it was cut off with no ellipsis.
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 4.dp, end = 4.dp),
+                        stringResource(
+                            if (showLog) R.string.console_bind_log_hide else R.string.console_bind_log_show
+                        )
                     )
                 }
             }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(entries) { entry -> HistoryCard(entry) }
+        if (showLog) {
+            item { BindLog(bridge.bindLog) }
         }
+
+        item {
+            OutlinedTextField(
+                value = command,
+                onValueChange = { command = it },
+                enabled = !busy,
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontFamily = FontFamily.Monospace,
+                    textDirection = TextDirection.Ltr,
+                ),
+                label = { Text(stringResource(R.string.console_command_label)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = { run(command.trim()) },
+                    enabled = !busy && connected && command.isNotBlank(),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.console_run))
+                }
+                OutlinedButton(
+                    onClick = { bridge.cancel() },
+                    enabled = busy,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.console_cancel))
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SELF_TEST_COMMANDS.forEach { preset ->
+                    OutlinedButton(
+                        onClick = { run(preset) },
+                        enabled = !busy && connected,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = preset,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                textDirection = TextDirection.Ltr,
+                            ),
+                            textAlign = TextAlign.Center,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+
+        items(entries.asReversed()) { entry -> HistoryCard(entry) }
     }
 }
 
 @Composable
-private fun ConnectionLabel(state: ConnectionState) {
+private fun ConnectionLabel(state: ConnectionState, modifier: Modifier = Modifier) {
     val labelRes = when (state) {
         ConnectionState.DISCONNECTED -> R.string.console_disconnected
         ConnectionState.CONNECTING -> R.string.console_connecting
@@ -171,14 +225,11 @@ private fun ConnectionLabel(state: ConnectionState) {
     Text(
         text = stringResource(R.string.console_state_format, stringResource(labelRes)),
         style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
     )
 }
 
-/**
- * Last few bind attempts, so a stuck DISCONNECTED can be diagnosed without logcat.
- * Deliberately shows the newest lines last so the cause is the final thing read.
- */
+/** Last few bind events, newest last. Selectable so it can be copied into a report. */
 @Composable
 private fun BindLog(lines: List<String>) {
     val shown = lines.takeLast(MAX_BIND_LOG_LINES)
@@ -202,10 +253,7 @@ private fun BindLog(lines: List<String>) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             } else {
-                Text(
-                    text = shown.joinToString("\n"),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                SelectionContainer { MonoText(shown.joinToString("\n")) }
             }
         }
     }
@@ -215,7 +263,7 @@ private fun BindLog(lines: List<String>) {
 private fun HistoryCard(entry: HistoryEntry) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
-            Text(text = entry.displayCommand, style = MaterialTheme.typography.bodyMedium)
+            MonoText("$ " + entry.displayCommand)
             Spacer(Modifier.height(4.dp))
             Text(
                 text = if (entry.failed) {
@@ -232,17 +280,17 @@ private fun HistoryCard(entry: HistoryEntry) {
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            if (entry.displayStdout.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(text = entry.displayStdout, style = MaterialTheme.typography.bodySmall)
-            }
-            if (entry.displayStderr.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = entry.displayStderr,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+            SelectionContainer {
+                Column {
+                    if (entry.displayStdout.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        MonoText(entry.displayStdout)
+                    }
+                    if (entry.displayStderr.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        MonoText(entry.displayStderr, MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         }
     }

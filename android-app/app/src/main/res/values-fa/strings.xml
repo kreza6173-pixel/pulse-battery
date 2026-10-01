@@ -10,7 +10,7 @@
     <string name="state_permission_needed_body">شیزوکو در حال اجراست. این برنامه هنوز برای استفاده از آن مجوز ندارد. دکمه اعطای مجوز را بزنید و پنجره تأیید را در شیزوکو بپذیرید.</string>
     <string name="state_rationale_hint">شیزوکو می‌گوید درخواست قبلی را رد کرده‌اید. شیزوکو را باز کنید و در فهرست مجوزها، PULSE // BATTERY را فعال کنید.</string>
     <string name="state_ready_title">شیزوکو آماده است</string>
-    <string name="state_ready_body">شیزوکو در حال اجراست و این برنامه مجوز دارد. اجرای دستورها در این مرحله جزو کار نیست.</string>
+    <string name="state_ready_body">شیزوکو در حال اجراست و این برنامه مجوز دارد. دستورها از طریق سرویس کاربر شیزوکو اجرا می‌شوند.</string>
 
     <string name="state_uid_value">شناسه کاربر شیزوکو: %1$d (%2$s)</string>
     <string name="uid_root">ریشه</string>
@@ -32,10 +32,12 @@
     <string name="console_connecting">در حال اتصال…</string>
     <string name="console_connected">متصل</string>
     <string name="console_state_format">سرویس کاربر: %1$s</string>
-    <string name="console_meta_format">خروج %1$d · %2$d میلی‌ثانیه</string>
+    <string name="console_meta_format">کد خروج %1$d · زمان %2$d میلی‌ثانیه</string>
     <string name="console_meta_no_exit">اجرا نشد</string>
     <string name="console_truncated">خروجی کوتاه شد</string>
     <string name="console_bind_log">گزارش اتصال (تازه‌ترین در پایان)</string>
     <string name="console_bind_log_empty">هنوز تلاشی برای اتصال نشده است.</string>
     <string name="console_bind_facts">در هر اتصال، وضعیت اتصال، نسخه سرور، شناسه کاربر و مجوز خوانده می‌شود.</string>
+    <string name="console_bind_log_show">نمایش گزارش</string>
+    <string name="console_bind_log_hide">پنهان کردن گزارش</string>
 </resources>
