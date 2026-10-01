@@ -1,4 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Declared by dev.rikka.shizuku:provider; repeated here so the requirement is
+         explicit and does not depend on manifest-merger behaviour. -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+
+    <!-- Package visibility (Android 11+ / API 30+): without these entries
+         PackageManager queries for the Shizuku manager always report "not installed". -->
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+        <package android:name="com.hamondev.shevery" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -6,6 +18,16 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.PulseBattery">
+
+        <!-- Shizuku binder entry point. Authority is <applicationId>.shizuku;
+             exported + multiprocess=false are hard requirements of the library. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

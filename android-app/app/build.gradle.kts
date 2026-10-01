@@ -63,6 +63,10 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.ui)
+    // Shizuku client library. 13.1.5 verified against the Maven Central metadata and
+    // against the published AAR's API surface; see docs/DECISIONS.md.
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
 }

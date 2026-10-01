@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PULSE // BATTERY</string>
+
+    <string name="state_not_installed_title">شیزوکو نصب نیست</string>
+    <string name="state_not_installed_body">برنامه مدیریت شیزوکو روی این دستگاه نیست. ابتدا آن را نصب کنید و سپس به این صفحه برگردید.</string>
+    <string name="state_not_running_title">شیزوکو نصب است ولی اجرا نیست</string>
+    <string name="state_not_running_body">مدیریت شیزوکو نصب است اما سرویس آن متوقف شده. آن را باز کنید و شیزوکو را اجرا کنید (با اشکال‌زدایی بی‌سیم یا ADB)، سپس برگردید.</string>
+    <string name="state_permission_needed_title">مجوز لازم است</string>
+    <string name="state_permission_needed_body">شیزوکو در حال اجراست. این برنامه هنوز برای استفاده از آن مجوز ندارد. دکمه اعطای مجوز را بزنید و پنجره تأیید را در شیزوکو بپذیرید.</string>
+    <string name="state_rationale_hint">شیزوکو می‌گوید درخواست قبلی را رد کرده‌اید. شیزوکو را باز کنید و در فهرست مجوزها، PULSE // BATTERY را فعال کنید.</string>
+    <string name="state_ready_title">شیزوکو آماده است</string>
+    <string name="state_ready_body">شیزوکو در حال اجراست و این برنامه مجوز دارد. اجرای دستورها در این مرحله جزو کار نیست.</string>
+
+    <string name="state_uid_value">شناسه کاربر شیزوکو: %1$d (%2$s)</string>
+    <string name="uid_root">ریشه</string>
+    <string name="uid_shell">پوسته</string>
+    <string name="uid_other">سایر</string>
+    <string name="uid_unknown">در دسترس نیست</string>
+
+    <string name="action_install_shizuku">دریافت شیزوکو</string>
+    <string name="action_open_manager">باز کردن شیزوکو</string>
+    <string name="action_request_permission">اعطای مجوز</string>
+    <string name="action_refresh">بررسی دوباره</string>
+</resources>

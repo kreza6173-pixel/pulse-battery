@@ -10,6 +10,10 @@ composeBom = "2025.12.00"
 activityCompose = "1.12.1"
 lifecycleRuntimeKtx = "2.10.0"
 coreSplashscreen = "1.2.0"
+# Shizuku client library. NOT a guess: on 2026-10-01 the Maven Central metadata for both
+# dev.rikka.shizuku:api and :provider listed <latest>13.1.5</latest>, and the published
+# api-13.1.5.aar / provider-13.1.5.aar were downloaded and their API surface inspected.
+# See docs/DECISIONS.md decision 16.
 shizuku = "13.1.5"
 junit = "4.13.2"
 

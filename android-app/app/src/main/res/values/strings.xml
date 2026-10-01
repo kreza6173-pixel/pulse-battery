@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PULSE // BATTERY</string>
-    <string name="hello">PULSE // BATTERY</string>
+
+    <string name="state_not_installed_title">Shizuku not installed</string>
+    <string name="state_not_installed_body">The Shizuku manager app is not on this device. Install it first, then come back here.</string>
+    <string name="state_not_running_title">Shizuku installed, not running</string>
+    <string name="state_not_running_body">The Shizuku manager is installed but its service is stopped. Open it and start Shizuku (via wireless debugging or ADB), then return.</string>
+    <string name="state_permission_needed_title">Permission needed</string>
+    <string name="state_permission_needed_body">Shizuku is running. This app still needs permission to use it. Tap Grant permission and accept the dialog inside Shizuku.</string>
+    <string name="state_rationale_hint">Shizuku reports that you declined the last request. Open Shizuku and enable PULSE // BATTERY in its permission list.</string>
+    <string name="state_ready_title">Shizuku ready</string>
+    <string name="state_ready_body">Shizuku is running and this app has permission. Command execution is not part of this milestone yet.</string>
+
+    <string name="state_uid_value">Shizuku uid: %1$d (%2$s)</string>
+    <string name="uid_root">root</string>
+    <string name="uid_shell">shell</string>
+    <string name="uid_other">other</string>
+    <string name="uid_unknown">not available</string>
+
+    <string name="action_install_shizuku">Get Shizuku</string>
+    <string name="action_open_manager">Open Shizuku</string>
+    <string name="action_request_permission">Grant permission</string>
+    <string name="action_refresh">Re-check</string>
 </resources>
