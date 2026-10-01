@@ -118,9 +118,12 @@ class ExecBridge(private val context: Context) {
             ?: return ExecOutcome.Failed(FAILURE_NOT_CONNECTED)
         val startedAt = System.currentTimeMillis()
         return try {
-            val result = binder.exec(command, timeoutMs)
+            val bundle = binder.exec(command, timeoutMs)
                 ?: return ExecOutcome.Failed(FAILURE_NULL_RESULT)
-            ExecOutcome.Completed(result, System.currentTimeMillis() - startedAt)
+            ExecOutcome.Completed(
+                ExecResult.fromBundle(bundle),
+                System.currentTimeMillis() - startedAt,
+            )
         } catch (e: Exception) {
             ExecOutcome.Failed("binder error: ${e.javaClass.simpleName}: ${e.message}")
         }

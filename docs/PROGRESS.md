@@ -59,10 +59,16 @@ The launcher icon was **not** touched.
 ## M2 — Shizuku UserService (AIDL) + exec bridge + console: CODE WRITTEN, AWAITING CI
 M3 is not started.
 
+CI:
+- `36808003294` — **failure**, `:app:compileDebugAidl`, two errors:
+  `Couldn't find import for class ExecResult` and `Failed to resolve 'ExecResult'`. The
+  result now travels as a `Bundle` instead; see DECISIONS.md decision 21.
+
 Written:
-- `src/main/aidl/.../exec/IUserService.aidl` — `exec(command, timeoutMs)` returning `ExecResult`,
+- `src/main/aidl/.../exec/IUserService.aidl` — `exec(command, timeoutMs)` returning the result,
   plus `cancel()`. AIDL re-enabled with `buildFeatures { aidl = true }` (AGP 8 disables it).
-- `exec/ExecResult.kt` — Parcelable with `@JvmField CREATOR`.
+- `exec/ExecResult.kt` — Parcelable result (`exitCode`, `stdout`, `stderr`, `truncated`) with a
+  `@JvmField CREATOR`, plus `toBundle()`/`fromBundle()` for the binder boundary.
 - `exec/ShizukuExecService.kt` — the UserService. `/system/bin/sh -c`, single-threaded executor
   so commands are serialised, stdout and stderr drained concurrently so a full pipe cannot
   deadlock the child, 64 KiB cap per stream setting `truncated`, stdin closed, timeout enforced by

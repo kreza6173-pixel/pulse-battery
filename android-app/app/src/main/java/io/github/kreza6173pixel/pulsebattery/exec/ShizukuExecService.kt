@@ -2,6 +2,7 @@ package io.github.kreza6173pixel.pulsebattery.exec
 
 import android.app.Service
 import android.content.Intent
+import android.os.Bundle
 import android.os.IBinder
 import java.io.InputStream
 import java.util.concurrent.ExecutorService
@@ -37,15 +38,22 @@ class ShizukuExecService : Service() {
 
     private val binder = object : IUserService.Stub() {
 
-        override fun exec(command: String?, timeoutMs: Int): ExecResult? {
+        override fun exec(command: String?, timeoutMs: Int): Bundle {
             val cmd = command.orEmpty()
             if (cmd.isBlank()) {
-                return ExecResult(EXIT_BAD_COMMAND, "", "empty command", false)
+                return ExecResult(EXIT_BAD_COMMAND, "", "empty command", false).toBundle()
             }
             val task = commandExecutor.submit { runOnce(cmd, timeoutMs) }
-            return runCatching { task.get() }.getOrElse { failure ->
-                ExecResult(EXIT_INTERNAL, "", "exec failed: ${failure.javaClass.simpleName}", false)
-            }
+            return runCatching { task.get() }
+                .getOrElse { failure ->
+                    ExecResult(
+                        EXIT_INTERNAL,
+                        "",
+                        "exec failed: ${failure.javaClass.simpleName}",
+                        false,
+                    )
+                }
+                .toBundle()
         }
 
         override fun cancel() {

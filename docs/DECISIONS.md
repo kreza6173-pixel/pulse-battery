@@ -175,20 +175,43 @@
      ignored and `IUserService` would never be generated. This is a build-file change only; it does
      not touch the pinned toolchain (same AGP 8.13.1, same Kotlin, same compileSdk 36).
 
-21. **[2026-10-01, M2] `ExecResult` is a Kotlin Parcelable; the AIDL deliberately omits
-     `parcelable ExecResult;`.**
-     Writing `parcelable ExecResult;` in a `.aidl` file makes the AIDL compiler emit an empty Java
-     stub class with the same fully-qualified name, which clashes with a Kotlin implementation.
-     Instead the interface references the Kotlin `ExecResult` directly, and AIDL marshals it through
-     `Parcelable.writeToParcel` / `Parcelable.CREATOR` at runtime — the same documented mechanism an
-     AIDL interface uses for any Java-defined Parcelable. `ExecResult.kt` therefore carries a
-     `@JvmField CREATOR`, and the field order in `writeToParcel` must match the read order in
-     `createFromParcel`.
+21. **[2026-10-01, M2] AIDL result travels as a `Bundle`, not as the `ExecResult` Parcelable.
+     This is forced by the toolchain — PROVEN, not a preference.**
+     I first wrote `IUserService.exec` to return the Kotlin `ExecResult` Parcelable directly,
+     on the assumption that AIDL marshals any Java-defined Parcelable the way it marshals a
+     framework one. **That assumption was wrong**, and CI run `36808003294` failed
+     `:app:compileDebugAidl` with exactly two errors:
 
-     **UNVERIFIED until CI:** whether `aidl` accepts an undeclared Parcelable as a return type. If
-     `:app:compileDebugAidl` fails to resolve `ExecResult`, the fallback is to change the signature
-     to `int exec(String command, int timeoutMs, out String stdout, out String stderr,
-     out boolean truncated)`, which is unambiguously supported and carries the same data.
+     ```
+     > Task :app:compileDebugAidl FAILED
+     ERROR: .../IUserService.aidl: Couldn't find import for class ExecResult. Searched here:
+       - .../versionedparcelable-1.1.1/aidl/
+       - .../core-1.16.0/aidl/
+       - .../src/debug/aidl/
+       - .../src/main/aidl/
+     ERROR: .../IUserService.aidl:21.1-15: Failed to resolve 'ExecResult'
+     ```
+
+     Root cause, read off the `aidl` invocation in the same log: the tool is called with
+     `-p<framework.aidl>` and four `-I` include directories (the app's `src/main/aidl`,
+     `src/debug/aidl`, and the `aidl/` directories of extracted AARs) and **no Java
+     classpath at all**. So an app-defined Parcelable is simply invisible to it.
+
+     The only way to make `ExecResult` resolvable would be a `parcelable ExecResult;`
+     declaration — and that makes `aidl` emit an empty Java class with the same
+     fully-qualified name, which collides with the Kotlin implementation.
+
+     Decision: the AIDL method returns `android.os.Bundle`, written fully qualified so it
+     needs no import. `ExecResult` stays the canonical typed result (still a real
+     `Parcelable` with a `@JvmField CREATOR`, per the brief), and `ExecResult.toBundle()` /
+     `ExecResult.fromBundle()` convert at the binder boundary. All four fields
+     (`exitCode`, `stdout`, `stderr`, `truncated`) cross intact. The alternative of `out`
+     parameters was rejected because AIDL's `out` parameter marshalling was not verifiable
+     here, whereas `Bundle` needs no type resolution beyond the framework.
+
+     **Lesson:** the aidl compiler's type resolution is narrower than the Java compiler's.
+     Reading a dependency's AAR tells you what a *Java* class can see; it says nothing about
+     what `aidl` can see.
 
 22. **[2026-10-01, M2] The `bindUserService` return value is discarded, on purpose.**
      Read from the bytecode of `api-13.1.5.aar`, not from memory:
