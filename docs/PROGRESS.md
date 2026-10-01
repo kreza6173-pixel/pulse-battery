@@ -9,8 +9,26 @@ Gradle 8.13 / JDK 17 / AGP 8.13.1 / Kotlin 2.2.21 / Compose BOM 2025.12.00 (mate
 compileSdk 36 / minSdk 26. Artifact `app-debug` confirmed to exist (11,270,321 B).
 The user installed that APK on their phone: it opens, shows the title, does not crash.
 
-## M1 — Shizuku client state machine + home screen: CODE WRITTEN, AWAITING CI
+## M1 — Shizuku client state machine + home screen: CI GREEN, awaiting phone verification
 Not started: anything else. M2 (UserService / exec) is explicitly out of scope for M1.
+
+CI:
+- `36805705739` — **failure**, `:app:compileDebugKotlin`, one error:
+  `ShizukuRuntime.kt:98:14 Unresolved reference 'addPackage'` (`Intent.setPackage` returns void
+  and cannot be chained onto the constructor).
+- `7dc8dd7` fixed it; run **`36806012324` — success**.
+
+Green is not proof, so the artifact was checked, not just the conclusion:
+- `actions/runs/36806012324/artifacts` → `app-debug` 11,317,991 B and `build-log` 1,346 B.
+- Downloaded APK: `android-app/app/build/outputs/apk/debug/app-debug.apk`, 11,793,554 B on disk.
+- Inside the APK's merged `AndroidManifest.xml`: `rikka.shizuku.ShizukuProvider`, authority
+  `io.github.kreza6173pixel.pulsebattery.shizuku`, `moe.shizuku.manager.permission.API_V23`,
+  `queries`, `moe.shizuku.privileged.api`, `com.hamondev.shevery`, `moe.shizuku.client.V3_SUPPORT`.
+- Inside the dex files: `rikka/shizuku/Shizuku`, `ShizukuProvider`,
+  `Shizuku$OnRequestPermissionResultListener`, `shizuku/ShizukuRuntime`, `ui/home/HomeScreenKt`.
+- Build log shows `:app:compileDebugUnitTestKotlin` then `:app:testDebugUnitTest` then
+  `BUILD SUCCESSFUL`, with no `w:` warnings. The uploaded artifact is the console log only, so
+  per-test names are not independently confirmed — the task passing is what is confirmed.
 
 Written:
 - `shizuku/ShizukuState.kt` — pure, no Android imports. `ShizukuState`
@@ -36,11 +54,10 @@ Also fixed: the title was rendered twice (`R.string.app_name` in the `TopAppBar`
 The launcher icon was **not** touched.
 
 ## Next
-- Read the M1 CI result. Green is not proof — list
-  `actions/runs/<id>/artifacts` and confirm `app-debug` exists before calling it done.
-- User installs the new APK and walks the four states on the phone, including a Persian
-  (RTL) pass over the title bar.
-- M2 only after M1 is verified on device: Shizuku `UserService` + `exec` bridge.
+- User installs `app-debug` from run `36806012324` and walks the four states (see the on-device
+  checklist in the M1 report).
+- M2 only after the phone check: Shizuku `UserService` + `exec` bridge. Nothing in M1 runs a
+  command.
 
 ## Known issues
 - `lint` still runs with `abortOnError = false`, so a green run does not mean lint is clean.
@@ -48,12 +65,14 @@ The launcher icon was **not** touched.
   so it can never crash the app, but a future library bump may drop it.
 
 ## UNVERIFIED — must be checked on the phone, not by CI
-- Everything in M1 until a CI run is green.
-- That `dev.rikka.shizuku:api:13.1.5` and `:provider:13.1.5` resolve in a Gradle build.
-  The artifacts exist and the API surface was read directly from the AARs
-  (docs/DECISIONS.md decision 16), but no build has resolved them yet.
+- **All runtime behaviour.** CI proves it compiles, packages and unit-tests the pure logic. It
+  proves nothing about what the app does on a real device with Shizuku installed.
 - That the RTL title fix actually stops the clipping.
-- That each of the four states is reachable and that `getUid()` reports 0 or 2000 as expected.
+- That each of the four states is reachable in practice, and that `getUid()` reports 0 (root) or
+  2000 (shell) as expected.
+- That the "Get Shizuku" / "Open Shizuku" buttons actually open something, and that
+  `FLAG_ACTIVITY_NEW_TASK` from the application context behaves as intended.
+- `<queries>` package visibility was verified in the merged manifest only, not on a device.
 
 ## UNVERIFIED (command-level — to be validated on-device later)
 - `am get-standby-bucket` / `am set-standby-bucket <pkg> <bucket>` (M4).

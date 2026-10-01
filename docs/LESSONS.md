@@ -352,15 +352,55 @@ The file carries the warning that it is duplicated from a global
 
 ---
 
+## 4b. Lessons from M1 (2026-10-01)
+
+**The working directory may be the wrong checkout.** This session started in a worktree on
+`kilo/able-summit-va4` of the same repo, where `docs/` and `android-app/` did not exist.
+`git remote -v` showed only `main` and `remotes/origin/native-app-v0`; the fix was
+`git fetch origin native-app-v0 && git checkout -B native-app-v0 origin/native-app-v0`.
+Check `git branch -a` before assuming the tree is missing.
+
+**`repo1.maven.org` returns HTTP 403 from this container.** The body is Sonatype's
+"This IP has been blocked for excessive or automated consumption of Maven Central". The working
+mirror for the same lookup is Google's Maven Central mirror:
+`https://maven-central.storage-download.googleapis.com/maven2/<group/path>/<artifact>/maven-metadata.xml`.
+That is still one lookup of one artifact — it is a different host for the same file, not a search.
+
+**Verifying a dependency's API surface from the published AAR is possible without a JDK.**
+`javap` is unavailable, but `unzip` plus a short tolerant UTF-8 constant-pool scan (walk the
+class file, keep every printable `CONSTANT_Utf8` run) lists the class names, method names and
+descriptors. This is how the `Shizuku` API surface in DECISIONS.md decision 16 was read rather
+than recalled, and it is what made the first M1 compile error the *only* compile error.
+Two traps: a strict class-file parser is a waste of time (an exact-width one broke on
+`CONSTANT_MethodHandle`/`MethodType`, which are 3 bytes after the tag, not 4), and the resyncing
+version that just keeps printable ASCII runs is good enough and never needs fixing.
+
+**Read the *published* manifest, not just your own.** `dev.rikka.shizuku:provider` merges
+`moe.shizuku.manager.permission.API_V23` into the app. Decompressing the AAR shows what a
+dependency will contribute to *your* manifest before you find out from a link error.
+
+**An APK can be verified without a device.** `unzip` the downloaded artifact: the merged
+`AndroidManifest.xml` string pool is UTF-16LE, so a regex for `(?:[\x20-\x7e]\x00){6,}` dumps
+the authorities, permissions and `<queries>` entries. The dex string pools are MUTF-8, so plain
+byte `in` tests find class descriptors — but check **every** `classes*.dex`, because dex
+splitting scatters a single class across files and a grep of `classes.dex` alone finds nothing.
+
+**Java setters do not chain in Kotlin.** `Intent(ACTION_VIEW, uri).addPackage(...)` failed with
+`Unresolved reference 'addPackage'` — `setPackage` returns `void`. Grep for other void setters
+before writing a builder chain.
+
+---
+
 ## 5. Still unverified / not tested
 
-- **The APK has never been installed or launched.** No device or emulator is available here.
-  It is structurally a valid APK (zip with `AndroidManifest.xml`, `classes.dex`,
-  `resources.arsc`), assembled by `:app:assembleDebug` in a passing run. Nothing more is known
-  about it.
-- `shizuku = "13.1.5"` and `coreSplashscreen = "1.2.0"` were never resolved by Gradle.
-- No unit tests exist yet; `testDebugUnitTest` currently runs over one placeholder test
-  (`ExampleUnitTest.addition_isCorrect`). A green `:app:testDebugUnitTest` therefore proves very little.
+- **The APK has never been installed or launched by me.** The user installed the M0 APK and
+  reported it opens and shows only the title. The M1 APK (run `36806012324`) has never been
+  installed by anyone. Everything about M1's on-device behaviour is untested.
+- `coreSplashscreen = "1.2.0"` is still not resolved by Gradle. `shizuku = "13.1.5"` is now
+  resolved and verified (M1).
+- Unit tests now exist for the Shizuku state logic (`ShizukuStateTest`, 11 assertions), but the
+  uploaded `build-log` artifact is the console log only, so per-test results were never read —
+  only that `:app:testDebugUnitTest` did not fail the build.
 - `lintDebug` runs with `abortOnError = false`, so a green run does not mean lint is clean.
 - The Gradle wrapper path (`./gradlew`) is never exercised in CI.
 - Whether AGP 8.13.1 has a documented minimum Gradle version was not checked.

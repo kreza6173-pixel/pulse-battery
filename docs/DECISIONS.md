@@ -132,9 +132,14 @@
        `V3_SUPPORT` meta-data. M1 also declares the permission in `AndroidManifest.xml` explicitly
        so the requirement does not depend on manifest-merger behaviour.
 
-     **Still UNVERIFIED:** that these artifacts *resolve* in a Gradle build. As of this commit no CI
-     run has resolved them, so "13.1.5 exists and has the API M1 calls" is verified, while
-     "the dependency graph resolves" is not.
+     **Now verified in a build:** CI run `36806012324` (success) compiled against these
+     artifacts. Run `36805705739` failed `:app:compileDebugKotlin` with exactly one error and it
+     was not a Shizuku one — `ShizukuRuntime.kt:98:14 Unresolved reference 'addPackage'` — so the
+     coordinates resolved and every `Shizuku.*` reference in the app resolved too. The shipped
+     APK contains `rikka/shizuku/Shizuku`, `rikka/shizuku/ShizukuProvider` and
+     `Shizuku$OnRequestPermissionResultListener` in its dex files, and the merged manifest inside
+     the APK contains the provider, the `${applicationId}.shizuku` authority, the `API_V23`
+     permission and both `<queries>` packages.
 
 17. **[2026-10-01, M1] The state machine is pure Kotlin; only a thin runtime touches Android.**
      `shizuku/ShizukuState.kt` has **no** Android and **no** Shizuku imports: it holds
