@@ -151,7 +151,9 @@ class ShizukuExecService : Service() {
                 while (true) {
                     val n = reader.read(chunk)
                     if (n < 0) break
-                    if (!sink.appendAll(chunk.copyOfRange(0, n))) break
+                    // copyOfRange returns CharArray, which is NOT a CharSequence.
+                    // String(CharArray, offset, length) is the stdlib conversion and copies once.
+                    if (!sink.appendAll(String(chunk, 0, n))) break
                 }
             }
         } catch (_: Exception) {
