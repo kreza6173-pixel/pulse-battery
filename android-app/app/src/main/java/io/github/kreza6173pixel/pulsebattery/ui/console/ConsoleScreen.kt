@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.kreza6173pixel.pulsebattery.R
 import io.github.kreza6173pixel.pulsebattery.exec.ConnectionState
@@ -139,9 +140,12 @@ fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
                 ) {
                     Text(
                         text = preset,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelSmall,
                         textAlign = TextAlign.Center,
-                        maxLines = 2,
+                        // `getprop ro.build.version.sdk` needs three lines in a half-width
+                        // button; at maxLines = 2 it was cut off with no ellipsis.
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(start = 4.dp, end = 4.dp),
                     )
                 }
