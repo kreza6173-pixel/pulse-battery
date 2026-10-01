@@ -322,3 +322,30 @@
      literals wrong (including two apostrophe-escaping cases) and one assertion backwards. Pure
      display/parse logic is cheap to model and cheap to check — do that instead of counting
      characters by eye.
+
+31. **[2026-10-01, M2] `CharArray` is not a `CharSequence`, and `copyOfRange` returns one.**
+     Run `36810306371` failed with a single error:
+
+     ```
+     e: .../exec/ShizukuExecService.kt:154:41 Argument type mismatch: actual type is 'CharArray', but 'CharSequence' was expected.
+     ```
+
+     The previous fix for the nonexistent `CharArray(chunk, 0, n)` constructor had substituted
+     `chunk.copyOfRange(0, n)`. That exists, returns a `CharArray`, and `CharArray` does **not**
+     implement `CharSequence`, so it cannot be passed to `OutputCollector.appendAll(CharSequence)`.
+     I had checked that the *constructor* existed without checking the *returned type's*
+     relationship to the *parameter*. Fixed with `String(chunk, 0, n)`, the stdlib
+     CharArray/offset/length conversion, which also copies once instead of allocating an
+     intermediate array. Run `36811639208` is green.
+
+     **Method note.** This is the third M2 error in the same family — JVM-vs-Kotlin type identity
+     rather than logic: `CharArray` vs `CharSequence`, `Int` vs `Long` literals, and a Java
+     overload that erases a type. All three compile fine in the reader's head and fail in CI.
+     Converting a `CharArray` to text must go through `String(...)` or `concatToString()`.
+
+32. **[2026-10-01, M2] M2 is CI-green (`36811639208`) but proves nothing at runtime.**
+     The build now proves: AIDL generates, all Kotlin compiles, `ShellQuotingTest`,
+     `RedactionTest`, `OutputCollectorTest` and `ConsoleHistoryTest` compile and pass, the service
+     and provider are in the merged manifest, and all M2 classes are in the shipped dex. It does
+     **not** prove that Shizuku binds the service, that a command runs, that `id` reports uid 2000,
+     or that timeout/truncation/cancel work. Treat M2 as unverified until the phone check.

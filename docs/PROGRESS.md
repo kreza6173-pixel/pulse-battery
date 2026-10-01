@@ -56,27 +56,40 @@ Also fixed: the title was rendered twice (`R.string.app_name` in the `TopAppBar`
 `R.string.hello`, same literal). The `hello` string and its body `Text` are gone.
 The launcher icon was **not** touched.
 
-## M2 — Shizuku UserService (AIDL) + exec bridge + console: CODE WRITTEN, AWAITING CI
+## M2 — Shizuku UserService (AIDL) + exec bridge + console: CI GREEN, awaiting phone verification
 M3 is not started.
 
-CI:
-- `36808003294` — **failure**, `:app:compileDebugAidl`, two errors:
-  `Couldn't find import for class ExecResult` and `Failed to resolve 'ExecResult'`. The
-  result now travels as a `Bundle` instead; see DECISIONS.md decision 21.
-- `36808508335` — **failure**, `:app:compileDebugKotlin`:
-  `ShizukuExecService.kt:56:18 Unresolved reference 'toBundle'`. AIDL was now compiling.
-- `36808950548` — **failure**, `:app:compileDebugKotlin`:
-  `ShizukuExecService.kt:51:38 Initializer type mismatch: expected 'ExecResult', actual 'Any!'`.
-  Root cause was the `submit(Runnable)` overload, not `getOrElse`; see DECISIONS.md decision 28.
-- `36809228035` — **failure**, `:app:compileDebugKotlin`, **five** errors (identical source that
-  had reported one, because Kotlin reports a variable number of frontend errors):
-  `ExecBridge.kt:100:85 No value passed for parameter 'p2'` (unbindUserService arity),
-  `ShizukuExecService.kt:51:38` and `:77:42` / `:77:58` (Long vs Int in `coerceIn`), and
-  `:150:41` (`CharArray(chunk, 0, n)` is not a constructor). See decisions 29 and 30.
+**Green run: `36811639208`.** Artifact `app-debug` 11,369,112 B — confirmed present, not assumed.
 
-None of the M2 unit tests have ever been compiled or run, because the build has always died at
-`compileDebugKotlin` first. Auditing them by hand found three wrong expectations and one real
-redaction leak (decision 30) that would each have turned the build red on the next attempt.
+CI history (five red runs, each exposing a further layer, then green):
+- `36808003294` — `:app:compileDebugAidl`. `Failed to resolve 'ExecResult'`: the aidl tool gets no
+  Java classpath. Result moved to a `Bundle`; decision 21.
+- `36808508335` — `:app:compileDebugKotlin`. `Unresolved reference 'toBundle'`; decision 28.
+- `36808950548` — `:app:compileDebugKotlin`. `expected 'ExecResult', actual 'Any!'`; decision 28.
+- `36809228035` — `:app:compileDebugAidl` OK, then **five** errors in `:app:compileDebugKotlin`;
+  decisions 29 and 30.
+- `36810306371` — `:app:compileDebugKotlin`. `actual type is 'CharArray', but 'CharSequence' was
+  expected`: `copyOfRange` returns a `CharArray`, which is not a `CharSequence`. Fixed with
+  `String(chunk, 0, n)`.
+
+Verification beyond the green conclusion:
+- `actions/runs/36811639208/artifacts` → `app-debug` 11,369,112 B and `build-log` 1,352 B.
+- Downloaded APK at `android-app/app/build/outputs/apk/debug/app-debug.apk`.
+- Merged manifest inside the APK contains `rikka.shizuku.ShizukuProvider`, the
+  `${applicationId}.shizuku` authority, `moe.shizuku.manager.permission.API_V23`, `queries`,
+  `moe.shizuku.privileged.api`, `com.hamondev.shevery`, **and** the new
+  `.exec.ShizukuExecService`.
+- Dex files contain `rikka/shizuku/Shizuku`, `ShizukuProvider`, `IUserService`,
+  `ShizukuExecService`, `ConsoleScreenKt`, `HomeScreenKt`, `ExecBridge`, `ShellQuoting`,
+  `Redaction`, `OutputCollector`, `ConsoleHistory`.
+- Build log shows `:app:compileDebugUnitTestKotlin`, then `:app:testDebugUnitTest`, then
+  `BUILD SUCCESSFUL`, with no `w:` or `e:` lines. The unit tests now compile **and** run for the
+  first time: 57 assertions across `ShellQuokingTest`, `RedactionTest`, `OutputCollectorTest` and
+  `ConsoleHistoryTest`. The uploaded artifact is the console log, so individual test names were
+  not read — only that the task passed.
+
+AIDL (`:app:compileDebugAidl`) and both Kotlin compilation steps are now proven. **No runtime
+behaviour is proven at all.**
 
 Written:
 - `src/main/aidl/.../exec/IUserService.aidl` — `exec(command, timeoutMs)` returning the result,
@@ -113,14 +126,14 @@ Written:
   does not recognise will still show it.
 
 ## UNVERIFIED — must be checked on the phone, not by CI
-- **All M2 runtime behaviour.** Nothing in M2 has been executed: not one command has been run
-  through the UserService, on any device.
-- That `aidl` accepts the Kotlin `ExecResult` Parcelable as a return type without a
-  `parcelable ExecResult;` declaration (DECISIONS.md decision 21).
+- **All M2 runtime behaviour.** Nothing in M2 has ever been executed. No command has run through
+  the UserService, on any device.
 - That Shizuku actually binds the service, i.e. that `exported="true"` on the service is correct
-  and no `android:process` is needed.
+  and no `android:process` is needed. Nothing in the build can tell us this.
 - That the self-test `id` really reports uid 2000 in the UserService process.
 - That the timeout, the 64 KiB truncation cap and `cancel()` behave as intended.
+- That redaction behaves as designed on real output; the unit tests only cover fixed strings.
+- The per-test names were never read — only that `:app:testDebugUnitTest` did not fail.
 - The RTL title fix was a code-level change; the user has not yet confirmed the Persian title.
 - `<queries>` package visibility was verified in the merged manifest only, not on a device.
 
