@@ -8,6 +8,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import rikka.shizuku.Shizuku
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Client-side view of the UserService connection. Pure enum, unit-testable. */
@@ -39,22 +41,38 @@ class ExecBridge(private val context: Context) {
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener { handleShizukuDied() }
 
+    /**
+     * Newest-last, capped, and shown on the console screen. The user has no logcat, and the
+     * bind call previously swallowed every exception, which made a persistent DISCONNECTED
+     * undiagnosable. Nothing here is redaction-relevant: it never contains a command.
+     */
+    var bindLog: List<String> by mutableStateOf(emptyList())
+        private set
+
+    private fun note(line: String) {
+        val stamp = LocalTime.now().format(TIME_FORMAT)
+        bindLog = (bindLog + "$stamp  $line").takeLast(MAX_LOG_LINES)
+    }
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             connecting.set(false)
             if (binder == null) {
+                note("onServiceConnected name=$name but binder was NULL")
                 service = null
                 connectionState = ConnectionState.DISCONNECTED
                 return
             }
             service = IUserService.Stub.asInterface(binder)
             connectionState = ConnectionState.CONNECTED
+            note("onServiceConnected name=$name -> CONNECTED")
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             connecting.set(false)
             service = null
             connectionState = ConnectionState.DISCONNECTED
+            note("onServiceDisconnected name=$name -> DISCONNECTED")
         }
     }
 
@@ -62,7 +80,9 @@ class ExecBridge(private val context: Context) {
     fun start() {
         if (started) return
         started = true
+        note("bridge start()")
         runCatching { Shizuku.addBinderDeadListener(binderDeadListener) }
+            .onFailure { note("addBinderDeadListener THREW ${it.javaClass.simpleName}: ${it.message}") }
     }
 
     fun stop() {
@@ -74,11 +94,20 @@ class ExecBridge(private val context: Context) {
 
     /** Requests a bind. No-op when already connected or a bind is already in flight. */
     fun connect() {
-        if (service != null || !connecting.compareAndSet(false, true)) return
+        if (service != null) {
+            note("connect() ignored: already have a service")
+            return
+        }
+        if (!connecting.compareAndSet(false, true)) {
+            note("connect() ignored: a bind is already in flight")
+            return
+        }
         connectionState = ConnectionState.CONNECTING
         val args = Shizuku.UserServiceArgs(component)
             .daemon(false)
             .debuggable(true)
+        note("connect() component=$component")
+        note("  args daemon=false debuggable=true tag=null versionCode=0 processNameSuffix=null")
         // Shizuku.bindUserService returns a package-private ShizukuServiceConnection, which cannot
         // be named outside rikka.shizuku. The result is therefore discarded, and the call is
         // written as a statement rather than wrapped in runCatching so that no Kotlin type
@@ -86,14 +115,23 @@ class ExecBridge(private val context: Context) {
         val bound = try {
             Shizuku.bindUserService(args, serviceConnection)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            note("  bindUserService THREW ${e.javaClass.name}")
+            note("  message: ${e.message}")
+            note("  cause: ${e.cause?.javaClass?.name}: ${e.cause?.message}")
             false
         }
         if (!bound) {
             connecting.set(false)
             service = null
             connectionState = ConnectionState.DISCONNECTED
+            note("  -> DISCONNECTED (bind failed, see above)")
+            return
         }
+        // A normal return only means the transaction was sent; the callback is what matters.
+        val peeked = runCatching { Shizuku.peekUserService(args, serviceConnection) }
+            .fold(onSuccess = { "peekUserService=$it" }, onFailure = { "peekUserService THREW ${it.javaClass.simpleName}" })
+        note("  bindUserService returned normally, $peeked (bind is async)")
     }
 
     fun disconnect() {
@@ -119,6 +157,7 @@ class ExecBridge(private val context: Context) {
         service = null
         connecting.set(false)
         connectionState = ConnectionState.DISCONNECTED
+        note("Shizuku binder died -> DISCONNECTED")
     }
 
     /**
@@ -151,5 +190,7 @@ class ExecBridge(private val context: Context) {
     private companion object {
         const val FAILURE_NOT_CONNECTED = "not connected to the Shizuku user service"
         const val FAILURE_NULL_RESULT = "the user service returned no result"
+        const val MAX_LOG_LINES = 40
+        val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
     }
 }

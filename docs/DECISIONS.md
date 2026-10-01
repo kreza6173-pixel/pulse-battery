@@ -349,3 +349,43 @@
      and provider are in the merged manifest, and all M2 classes are in the shipped dex. It does
      **not** prove that Shizuku binds the service, that a command runs, that `id` reports uid 2000,
      or that timeout/truncation/cancel work. Treat M2 as unverified until the phone check.
+
+33. **[2026-10-01, M2, phone] The UserService stayed DISCONNECTED. Cause NOT yet known; the
+     reason it was undiagnosable is this decision.**
+     The user installed `36811639208` and reported: READY with uid 2000, the **Open console** button
+     present, the console opening, but the header stuck at `User service: disconnected` with Run,
+     Cancel and both quick buttons disabled — so `onServiceConnected` never fired.
+
+     Where the pieces are:
+     - `exec/ExecBridge.kt:96` `connect()`; `:116` the `Shizuku.bindUserService` call.
+     - Args built at `:106-108`: `UserServiceArgs(component)` with `.daemon(false)` and
+       `.debuggable(true)`. `component` is built at `:38` from `applicationContext`. **No `tag`,
+       no `version(...)`, no `processNameSuffix(...)`.**
+     - Trigger is **becoming READY**, not opening the console: `MainActivity.kt:76-78`,
+       `DisposableEffect(ready) { if (ready) bridge.connect() else bridge.disconnect() }` where
+       `ready = runtime.state == ShizukuState.READY` (`MainActivity.kt:75`).
+     - UI state is written at `ExecBridge.kt:68` (`onServiceConnected` → CONNECTED), `:63` (null
+       binder), `:75` (`onServiceDisconnected`), `:127` (bind failed), and on Shizuku binder-death.
+
+     **The defect that hid the cause:** `connect()` used `catch (_: Exception) { false }` and set
+     DISCONNECTED. Every failure mode — wrong component, service not in the manifest, missing
+     exported flag, version mismatch, permission race — produced the *identical* UI with the reason
+     thrown away. `connect()` also sets `CONNECTING` and, on failure, resets it inside one frame, so
+     the user never even sees the intermediate state. `runCatching { Shizuku.bindUserService(...) }`
+     made it worse, because naming the result would force Kotlin to name the package-private
+     `ShizukuServiceConnection` return type (decision 22).
+
+     Verified against `api-13.1.5.aar` rather than assumed: `UserServiceArgs` really does have the
+     `(Landroid/content/ComponentName;)V` constructor plus `daemon`/`debuggable`
+     (`(Z)L…UserServiceArgs;`), `version` (`(I)…`) and `processNameSuffix`/`tag`
+     (`(Ljava/lang/String;)…`). So the API usage is valid and the failure is behavioural.
+
+     This push therefore adds **diagnostics only** and changes no bind logic: a capped, timestamped
+     bind log records the component, the args, whether `bindUserService` returned or threw (with
+     exception class, message and cause), the result of `Shizuku.peekUserService`, and both
+     `ServiceConnection` callbacks. It is rendered on the console so it is readable without logcat.
+     `peekUserService` was checked for an error-level deprecation first: `Ljava/lang/Deprecated;`
+     and every `DeprecatedLevel` constant are absent from the class file.
+
+     **Deliberately not fixed blind.** The candidates I can see in the code are all plausible and
+     none is confirmed; guessing between them would burn another push and another device round-trip.

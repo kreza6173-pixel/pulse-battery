@@ -35,4 +35,6 @@
     <string name="console_meta_format">exit %1$d · %2$d ms</string>
     <string name="console_meta_no_exit">did not run</string>
     <string name="console_truncated">output truncated</string>
+    <string name="console_bind_log">Bind log (newest last)</string>
+    <string name="console_bind_log_empty">No bind attempt yet.</string>
 </resources>

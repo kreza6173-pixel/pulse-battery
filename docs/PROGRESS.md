@@ -56,7 +56,32 @@ Also fixed: the title was rendered twice (`R.string.app_name` in the `TopAppBar`
 `R.string.hello`, same literal). The `hello` string and its body `Text` are gone.
 The launcher icon was **not** touched.
 
-## M2 — Shizuku UserService (AIDL) + exec bridge + console: CI GREEN, awaiting phone verification
+## M2 — Shizuku UserService (AIDL) + exec bridge + console: CI GREEN, **BLOCKED ON DEVICE**
+
+### Phone result for run 36811639208
+- PASS: READY, uid 2000 (shell), **Open console** button shown.
+- PASS: console title not clipped in Persian.
+- **FAIL: the console header stays `User service: disconnected`.** Run, Cancel and both quick
+  buttons stay disabled, so `onServiceConnected` never fired and no command could run.
+  Steps 3-9 of the checklist are untestable until it connects.
+- Known minor issue: the second quick button's label (`getprop ro.build.version.sdk`) is clipped.
+
+**Cause not yet known.** The bind path is at `exec/ExecBridge.kt:96` (`connect()`) and `:116`
+(`Shizuku.bindUserService`), args at `:106-108`, triggered on becoming READY from
+`MainActivity.kt:76-78`. The API usage was verified against `api-13.1.5.aar` and is correct, so
+this is behavioural, not a wrong call. Diagnosis was impossible because `connect()` swallowed the
+exception with `catch (_: Exception) { false }`, making every failure mode look identical — and it
+reset `CONNECTING` inside one frame so the intermediate state was never even visible.
+
+### This change: diagnostics only, no blind fix
+`ExecBridge` now keeps a capped, timestamped `bindLog` recording: the component, the args, whether
+`bindUserService` returned or threw (exception class, message, cause), the result of
+`Shizuku.peekUserService`, and both `ServiceConnection` callbacks. The console renders the last 12
+lines so it can be read without logcat. Strings added in English and Persian. See DECISIONS.md
+decision 33.
+
+Pending: read the bind log on the phone, then fix the actual cause in a later push. The clipped
+quick-button label is also queued.
 M3 is not started.
 
 **Green run: `36811639208`.** Artifact `app-debug` 11,369,112 B — confirmed present, not assumed.
@@ -112,10 +137,10 @@ Written:
 - New tests: `ShellQuotingTest`, `RedactionTest`, `OutputCollectorTest`, `ConsoleHistoryTest`.
 
 ## Next
-- Read the M2 CI result. Green is not proof — list `actions/runs/<id>/artifacts` and confirm
-  `app-debug` exists.
-- User installs the M2 APK and checks the console on the phone.
-- M3 only after that.
+- Read the M2 CI result for the bind-log build, confirm `app-debug`, and have the user report what
+  the **Bind log** on the console says. Then fix the real cause.
+- The clipped second quick-button label (`getprop ro.build.version.sdk`) is a known follow-up.
+- M3 is **not** started, per instruction.
 
 ## Known issues
 - `lint` still runs with `abortOnError = false`, so a green run does not mean lint is clean.

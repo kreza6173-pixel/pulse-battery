@@ -44,6 +44,8 @@ private val SELF_TEST_COMMANDS = listOf("id", "getprop ro.build.version.sdk")
 
 private const val TIMEOUT_MS = 15_000
 
+private const val MAX_BIND_LOG_LINES = 12
+
 /**
  * Console screen. Only reachable when Shizuku is READY, because every command here needs the
  * UserService. All padding is start/end so the layout mirrors under the `fa` locale.
@@ -87,6 +89,8 @@ fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ConnectionLabel(bridge.connectionState)
+
+        BindLog(bridge.bindLog)
 
         OutlinedTextField(
             value = command,
@@ -165,6 +169,37 @@ private fun ConnectionLabel(state: ConnectionState) {
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+/**
+ * Last few bind attempts, so a stuck DISCONNECTED can be diagnosed without logcat.
+ * Deliberately shows the newest lines last so the cause is the final thing read.
+ */
+@Composable
+private fun BindLog(lines: List<String>) {
+    val shown = lines.takeLast(MAX_BIND_LOG_LINES)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.console_bind_log),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Spacer(Modifier.height(4.dp))
+            if (shown.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.console_bind_log_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else {
+                Text(
+                    text = shown.joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
 }
 
 @Composable
