@@ -94,8 +94,9 @@ class ShizukuRuntime(private val context: Context) {
     /** Launches the manager app, else the store page, else the F-Droid page. */
     fun launchManager(): ManagerLaunchResult {
         getLaunchIntentForInstalledManager()?.let { return startIntent(it) }
+        // `setPackage` returns void, so it cannot be chained onto the constructor.
         val store = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$MANAGER_PACKAGE"))
-            .addPackage("com.android.vending")
+        store.setPackage("com.android.vending")
         if (startIntent(store) == ManagerLaunchResult.STARTED) return ManagerLaunchResult.STARTED
         return startIntent(Intent(Intent.ACTION_VIEW, Uri.parse(MANAGER_FDROID_URL)))
     }
