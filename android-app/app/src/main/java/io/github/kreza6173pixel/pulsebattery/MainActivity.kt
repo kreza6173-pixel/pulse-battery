@@ -25,6 +25,7 @@ import io.github.kreza6173pixel.pulsebattery.exec.ExecBridge
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuRuntime
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuState
 import io.github.kreza6173pixel.pulsebattery.ui.console.ConsoleScreen
+import io.github.kreza6173pixel.pulsebattery.ui.diag.DiagnosticsScreen
 import io.github.kreza6173pixel.pulsebattery.ui.home.HomeScreen
 import io.github.kreza6173pixel.pulsebattery.ui.theme.PulseBatteryTheme
 
@@ -39,8 +40,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PulseBatteryTheme {
-                // Shizuku binder/permission listeners are registered and torn down
-                // together with the composition.
                 DisposableEffect(Unit) {
                     runtime.start()
                     bridge.start()
@@ -62,33 +61,37 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// TopAppBar is still @ExperimentalMaterial3Api in material3 1.4.0. This is a top-level
-// function, so the class-level @OptIn above does not cover it.
+private enum class Screen { HOME, CONSOLE, DIAGNOSTICS }
+
+// TopAppBar is still @ExperimentalMaterial3Api in material3 1.4.0.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
-    var consoleOpen by remember { mutableStateOf(false) }
+    var screen by remember { mutableStateOf(Screen.HOME) }
 
-    // Bind the user service only while Shizuku is usable, and drop back to the home screen
-    // the moment it is not. This is also what recovers the connection after a Shizuku restart:
-    // the state leaves READY, the effect disconnects, and a later READY binds again.
+    // Bind the user service only while Shizuku is usable; this also recovers after a restart.
     val ready = runtime.state == ShizukuState.READY
     DisposableEffect(ready) {
         if (ready) bridge.connect() else bridge.disconnect()
         onDispose { bridge.disconnect() }
     }
 
-    val onConsole = consoleOpen && ready
+    // Every screen except home needs the user service, so they fall back to home when not READY.
+    val shown = if (ready) screen else Screen.HOME
+
+    BackHandler(enabled = shown != Screen.HOME) { screen = Screen.HOME }
 
     Scaffold(
         topBar = {
-            // `fillMaxWidth` + `maxLines = 1` + ellipsis stops the title being clipped at the
-            // trailing edge under an RTL (fa) locale. Padding is start/end, so it mirrors.
             TopAppBar(
                 title = {
                     Text(
                         text = stringResource(
-                            if (onConsole) R.string.console_title else R.string.app_name
+                            when (shown) {
+                                Screen.HOME -> R.string.app_name
+                                Screen.CONSOLE -> R.string.console_title
+                                Screen.DIAGNOSTICS -> R.string.diag_title
+                            }
                         ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -103,15 +106,15 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
         val contentModifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-        if (onConsole) {
-            BackHandler { consoleOpen = false }
-            ConsoleScreen(bridge = bridge, modifier = contentModifier)
-        } else {
-            HomeScreen(
+        when (shown) {
+            Screen.HOME -> HomeScreen(
                 runtime = runtime,
                 modifier = contentModifier,
-                onOpenConsole = { consoleOpen = true },
+                onOpenConsole = { screen = Screen.CONSOLE },
+                onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
             )
+            Screen.CONSOLE -> ConsoleScreen(bridge = bridge, modifier = contentModifier)
+            Screen.DIAGNOSTICS -> DiagnosticsScreen(bridge = bridge, modifier = contentModifier)
         }
     }
 }

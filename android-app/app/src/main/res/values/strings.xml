@@ -22,8 +22,13 @@
     <string name="action_open_manager">Open Shizuku</string>
     <string name="action_request_permission">Grant permission</string>
     <string name="action_refresh">Re-check</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_share">Share</string>
+    <string name="copied">Copied</string>
 
     <string name="home_open_console">Open console</string>
+    <string name="home_open_diagnostics">Battery diagnostics</string>
+
     <string name="console_title">PULSE // CONSOLE</string>
     <string name="console_command_label">Shell command</string>
     <string name="console_run">Run</string>
@@ -40,4 +45,38 @@
     <string name="console_bind_facts">Reads pingBinder, server API version, uid and permission at each bind.</string>
     <string name="console_bind_log_show">Show log</string>
     <string name="console_bind_log_hide">Hide log</string>
+
+    <string name="diag_title">PULSE // DIAGNOSTICS</string>
+    <string name="diag_auto_refresh">Auto-refresh every 5 s</string>
+    <string name="diag_refresh">Refresh now</string>
+    <string name="diag_waiting">Waiting for the user service…</string>
+    <string name="diag_loading">Reading…</string>
+    <string name="diag_error">Could not read: %1$s</string>
+    <string name="diag_unknown">unknown</string>
+    <string name="diag_battery">Battery</string>
+    <string name="diag_status_charging">Charging</string>
+    <string name="diag_status_discharging">Discharging</string>
+    <string name="diag_status_not_charging">Plugged in, not charging</string>
+    <string name="diag_status_full">Full</string>
+    <string name="diag_row_temp">Temperature</string>
+    <string name="diag_row_voltage">Voltage</string>
+    <string name="diag_row_health">Health</string>
+    <string name="diag_row_source">Power source</string>
+    <string name="diag_row_tech">Technology</string>
+    <string name="diag_temp_value">%1$.1f °C</string>
+    <string name="diag_voltage_value">%1$.3f V</string>
+    <string name="diag_health_good">Good</string>
+    <string name="diag_health_overheat">Overheating</string>
+    <string name="diag_health_dead">Dead</string>
+    <string name="diag_health_over_voltage">Over voltage</string>
+    <string name="diag_health_failure">Failure</string>
+    <string name="diag_health_cold">Cold</string>
+    <string name="diag_source_battery">Battery</string>
+    <string name="diag_source_ac">AC charger</string>
+    <string name="diag_source_usb">USB</string>
+    <string name="diag_source_wireless">Wireless</string>
+    <string name="diag_source_dock">Dock</string>
+    <string name="diag_wakelocks">Active wake locks (%1$d)</string>
+    <string name="diag_wakelocks_none">No wake lock is held right now.</string>
+    <string name="diag_wakelock_meta">%1$s · held %2$s</string>
 </resources>

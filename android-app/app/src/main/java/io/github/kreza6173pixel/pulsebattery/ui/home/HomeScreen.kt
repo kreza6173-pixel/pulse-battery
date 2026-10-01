@@ -22,15 +22,15 @@ import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuState
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuUidKind
 
 /**
- * M1 home screen: shows the Shizuku client state and exactly one next action per state.
- * Mirrors are padded with `start`/`end`, never `left`/`right`, so the layout is correct
- * under the `fa` (RTL) locale.
+ * Home screen: Shizuku client state, exactly one next action per state, and the feature
+ * entry points once READY. Padding is start/end only, so the layout mirrors under fa (RTL).
  */
 @Composable
 fun HomeScreen(
     runtime: ShizukuRuntime,
     modifier: Modifier = Modifier,
     onOpenConsole: () -> Unit = {},
+    onOpenDiagnostics: () -> Unit = {},
 ) {
     val state = runtime.state
 
@@ -43,9 +43,18 @@ fun HomeScreen(
         StateCard(runtime)
         StateAction(runtime, state)
         UidRow(runtime)
-        // The console needs the Shizuku UserService, so it is only offered once READY.
+        // Both features need the Shizuku UserService, so they are only offered once READY.
         if (state == ShizukuState.READY) {
             Button(
+                onClick = onOpenDiagnostics,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(R.string.home_open_diagnostics),
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+                )
+            }
+            OutlinedButton(
                 onClick = onOpenConsole,
                 modifier = Modifier.fillMaxWidth(),
             ) {

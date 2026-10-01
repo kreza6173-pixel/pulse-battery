@@ -22,8 +22,13 @@
     <string name="action_open_manager">باز کردن شیزوکو</string>
     <string name="action_request_permission">اعطای مجوز</string>
     <string name="action_refresh">بررسی دوباره</string>
+    <string name="action_copy">کپی</string>
+    <string name="action_share">اشتراک</string>
+    <string name="copied">کپی شد</string>
 
     <string name="home_open_console">باز کردن کنسول</string>
+    <string name="home_open_diagnostics">عیب‌یابی باتری</string>
+
     <string name="console_title">PULSE // CONSOLE</string>
     <string name="console_command_label">دستور شل</string>
     <string name="console_run">اجرا</string>
@@ -40,4 +45,38 @@
     <string name="console_bind_facts">در هر اتصال، وضعیت اتصال، نسخه سرور، شناسه کاربر و مجوز خوانده می‌شود.</string>
     <string name="console_bind_log_show">نمایش گزارش</string>
     <string name="console_bind_log_hide">پنهان کردن گزارش</string>
+
+    <string name="diag_title">PULSE // DIAGNOSTICS</string>
+    <string name="diag_auto_refresh">به‌روزرسانی خودکار هر ۵ ثانیه</string>
+    <string name="diag_refresh">تازه‌سازی</string>
+    <string name="diag_waiting">در انتظار سرویس کاربر…</string>
+    <string name="diag_loading">در حال خواندن…</string>
+    <string name="diag_error">خواندن ممکن نشد: %1$s</string>
+    <string name="diag_unknown">نامشخص</string>
+    <string name="diag_battery">باتری</string>
+    <string name="diag_status_charging">در حال شارژ</string>
+    <string name="diag_status_discharging">در حال تخلیه</string>
+    <string name="diag_status_not_charging">وصل به برق، بدون شارژ</string>
+    <string name="diag_status_full">پر</string>
+    <string name="diag_row_temp">دما</string>
+    <string name="diag_row_voltage">ولتاژ</string>
+    <string name="diag_row_health">سلامت</string>
+    <string name="diag_row_source">منبع برق</string>
+    <string name="diag_row_tech">فناوری</string>
+    <string name="diag_temp_value">%1$.1f °C</string>
+    <string name="diag_voltage_value">%1$.3f V</string>
+    <string name="diag_health_good">خوب</string>
+    <string name="diag_health_overheat">داغ شدن بیش از حد</string>
+    <string name="diag_health_dead">از کار افتاده</string>
+    <string name="diag_health_over_voltage">ولتاژ بیش از حد</string>
+    <string name="diag_health_failure">خرابی</string>
+    <string name="diag_health_cold">سرد</string>
+    <string name="diag_source_battery">باتری</string>
+    <string name="diag_source_ac">شارژر برق</string>
+    <string name="diag_source_usb">USB</string>
+    <string name="diag_source_wireless">بی‌سیم</string>
+    <string name="diag_source_dock">داک</string>
+    <string name="diag_wakelocks">قفل‌های بیداری فعال (%1$d)</string>
+    <string name="diag_wakelocks_none">الان هیچ قفل بیداری فعال نیست.</string>
+    <string name="diag_wakelock_meta">%1$s · مدت %2$s</string>
 </resources>

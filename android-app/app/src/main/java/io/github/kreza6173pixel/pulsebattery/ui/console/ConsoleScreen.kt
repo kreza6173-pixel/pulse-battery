@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LocalTextStyle
@@ -21,7 +20,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,15 +28,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.kreza6173pixel.pulsebattery.R
 import io.github.kreza6173pixel.pulsebattery.exec.ConnectionState
@@ -46,13 +40,13 @@ import io.github.kreza6173pixel.pulsebattery.exec.ConsoleHistory
 import io.github.kreza6173pixel.pulsebattery.exec.ExecBridge
 import io.github.kreza6173pixel.pulsebattery.exec.ExecOutcome
 import io.github.kreza6173pixel.pulsebattery.exec.HistoryEntry
+import io.github.kreza6173pixel.pulsebattery.ui.common.CopyShareButtons
+import io.github.kreza6173pixel.pulsebattery.ui.common.LtrMonoText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * The complete list of commands the built-in self-test may run. Both are read-only.
- */
+/** The complete list of commands the built-in self-test may run. Both are read-only. */
 private val SELF_TEST_COMMANDS = listOf("id", "getprop ro.build.version.sdk")
 
 private const val TIMEOUT_MS = 15_000
@@ -60,31 +54,8 @@ private const val TIMEOUT_MS = 15_000
 private const val MAX_BIND_LOG_LINES = 12
 
 /**
- * Shell text (commands, output, bind log) is always LTR + monospace. Under the fa locale the
- * bidi algorithm otherwise reorders it: "bridge start()" rendered as "()bridge start".
- */
-@Composable
-private fun monoStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(
-    fontFamily = FontFamily.Monospace,
-    textDirection = TextDirection.Ltr,
-    textAlign = TextAlign.Left,
-)
-
-@Composable
-private fun MonoText(text: String, color: Color = Color.Unspecified) {
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        Text(
-            text = text,
-            style = monoStyle(),
-            color = color,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-/**
  * Console screen. Only reachable when Shizuku is READY. The whole screen is one LazyColumn so
- * nothing can be squeezed off the bottom; newest result is shown first, under the controls.
+ * nothing can be squeezed off the bottom. ConsoleHistory.items is already newest-first.
  */
 @Composable
 fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
@@ -211,7 +182,7 @@ fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
             }
         }
 
-        items(entries.asReversed()) { entry -> HistoryCard(entry) }
+        items(entries) { entry -> HistoryCard(entry) }
     }
 }
 
@@ -229,7 +200,7 @@ private fun ConnectionLabel(state: ConnectionState, modifier: Modifier = Modifie
     )
 }
 
-/** Last few bind events, newest last. Selectable so it can be copied into a report. */
+/** Last few bind events, newest last. */
 @Composable
 private fun BindLog(lines: List<String>) {
     val shown = lines.takeLast(MAX_BIND_LOG_LINES)
@@ -237,10 +208,17 @@ private fun BindLog(lines: List<String>) {
         Column(
             modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.console_bind_log),
-                style = MaterialTheme.typography.labelLarge,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.console_bind_log),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                if (shown.isNotEmpty()) CopyShareButtons(lines.joinToString("\n"))
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.console_bind_facts),
@@ -253,17 +231,27 @@ private fun BindLog(lines: List<String>) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             } else {
-                SelectionContainer { MonoText(shown.joinToString("\n")) }
+                LtrMonoText(shown.joinToString("\n"))
             }
         }
     }
 }
 
+/** Plain-text form of one result, for Copy / Share. Uses the already-redacted fields only. */
+private fun HistoryEntry.asReport(): String = buildString {
+    append("$ ").append(displayCommand).append('\n')
+    if (failed) append("did not run\n") else append("exit $exitCode, $durationMs ms\n")
+    if (truncated) append("[output truncated]\n")
+    if (displayStdout.isNotEmpty()) append('\n').append(displayStdout)
+    if (displayStderr.isNotEmpty()) append("\n[stderr]\n").append(displayStderr)
+}
+
 @Composable
 private fun HistoryCard(entry: HistoryEntry) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
-            MonoText("$ " + entry.displayCommand)
+        Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)) {
+            CopyShareButtons(entry.asReport())
+            LtrMonoText("$ " + entry.displayCommand)
             Spacer(Modifier.height(4.dp))
             Text(
                 text = if (entry.failed) {
@@ -280,17 +268,13 @@ private fun HistoryCard(entry: HistoryEntry) {
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            SelectionContainer {
-                Column {
-                    if (entry.displayStdout.isNotEmpty()) {
-                        Spacer(Modifier.height(4.dp))
-                        MonoText(entry.displayStdout)
-                    }
-                    if (entry.displayStderr.isNotEmpty()) {
-                        Spacer(Modifier.height(4.dp))
-                        MonoText(entry.displayStderr, MaterialTheme.colorScheme.error)
-                    }
-                }
+            if (entry.displayStdout.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                LtrMonoText(entry.displayStdout)
+            }
+            if (entry.displayStderr.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                LtrMonoText(entry.displayStderr, MaterialTheme.colorScheme.error)
             }
         }
     }
