@@ -1,0 +1,31 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you tap, what did you expect, what did you get?
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Paste the result card (Copy button) or console output. Remove anything private.
+      render: text
+  - type: input
+    id: device
+    attributes:
+      label: Device and ROM
+      placeholder: e.g. Pixel 8, stock Android 16 / Xiaomi 14, HyperOS 2
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: PULSE and Shizuku versions
+      placeholder: e.g. PULSE 1.0.0, Shizuku 13.6.0 (wireless debugging)
+    validations:
+      required: true

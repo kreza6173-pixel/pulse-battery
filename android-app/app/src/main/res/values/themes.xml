@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Platform theme: the M0 skeleton has no com.google.android.material dependency,
+         so Theme.Material3.* and its colorPrimary attrs are unavailable at link time.
+         Dark mode is handled in Compose (PulseBatteryTheme via isSystemInDarkTheme). -->
+    <style name="Theme.PulseBattery" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/md_theme_primary</item>
+    </style>
+</resources>

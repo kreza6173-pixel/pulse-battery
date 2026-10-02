@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Battery outline with a pulse line. 108 dp adaptive canvas; all strokes stay inside the
+     66 dp safe zone (x and y between 21 and 87). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:pathData="M42,30 L66,30 A6,6 0 0 1 72,36 L72,78 A6,6 0 0 1 66,84 L42,84 A6,6 0 0 1 36,78 L36,36 A6,6 0 0 1 42,30 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,23 L60,23 A2,2 0 0 1 62,25 L62,30 L46,30 L46,25 A2,2 0 0 1 48,23 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF5F6D"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M28,58 L43,58 L48,46 L55,70 L60,52 L63,58 L80,58" />
+</vector>

@@ -1,0 +1,38 @@
+# All versions come from ONE consistent source: the version catalog of
+# android/compose-samples at tag v2025.12.00 (a green official sample pinned to
+# compileSdk 36 / AGP 8.13.1 / Kotlin 2.2.21 / Gradle 8.13).
+# Source: https://github.com/android/compose-samples/blob/v2025.12.00/Jetchat/gradle/libs.versions.toml
+# See docs/DECISIONS.md for evidence.
+[versions]
+agp = "8.13.1"
+kotlin = "2.2.21"
+composeBom = "2025.12.00"
+activityCompose = "1.12.1"
+lifecycleRuntimeKtx = "2.10.0"
+coreSplashscreen = "1.2.0"
+# Shizuku client library. NOT a guess: on 2026-10-01 the Maven Central metadata for both
+# dev.rikka.shizuku:api and :provider listed <latest>13.1.5</latest>, and the published
+# api-13.1.5.aar / provider-13.1.5.aar were downloaded and their API surface inspected.
+# See docs/DECISIONS.md decision 16.
+shizuku = "13.1.5"
+junit = "4.13.2"
+
+[libraries]
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
+shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+# AGP 8.x needs the standalone Kotlin Android plugin; Kotlin 2.x additionally
+# requires the separate Compose compiler plugin.
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

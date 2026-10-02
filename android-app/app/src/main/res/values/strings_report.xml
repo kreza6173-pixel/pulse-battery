@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="report_title">PULSE // DRAIN</string>
+    <string name="home_open_report">Overnight drain report</string>
+    <string name="report_intro_title">What woke your phone?</string>
+    <string name="report_intro_body">Tap Start new period before bed. Android counts every wakeup on its own, so PULSE does not need to stay open or run in the background. In the morning, open this screen to see which apps woke the phone most.</string>
+    <string name="report_start">Start new period</string>
+    <string name="report_starting">Starting…</string>
+    <string name="report_refresh">Refresh</string>
+    <string name="report_restart">New period</string>
+    <string name="report_started_toast">New period started</string>
+    <string name="report_no_period">No period started yet. The list below counts since the last boot.</string>
+    <string name="report_period_since">Started at &#x2066;%1$s&#x2069; · running &#x2066;%2$s&#x2069;</string>
+    <string name="report_updated">Updated &#x2066;%1$s&#x2069; · refreshes every minute while this screen is open</string>
+    <string name="report_updating">Updating…</string>
+    <string name="report_rebooted">The phone restarted during this period, so counts start from that restart.</string>
+    <string name="report_restart_confirm_title">Start a new period?</string>
+    <string name="report_restart_confirm_body">The current period is discarded and counting starts from zero now.</string>
+    <string name="report_restart_confirm_ok">Start new</string>
+    <string name="report_cancel">Cancel</string>
+    <string name="report_top_title">Top wakers (%1$d)</string>
+    <string name="report_since_boot_title">Top wakers since boot (%1$d)</string>
+    <plurals name="report_total">
+        <item quantity="one">%1$d alarm wakeup in total</item>
+        <item quantity="other">%1$d alarm wakeups in total</item>
+    </plurals>
+    <plurals name="report_wakeups">
+        <item quantity="one">%1$d wakeup</item>
+        <item quantity="other">%1$d wakeups</item>
+    </plurals>
+    <string name="report_rate">&#x2066;%1$s&#x2069; per hour</string>
+    <string name="report_none">Nothing woke the phone yet in this period. Check back in the morning.</string>
+    <string name="report_bucket_none">n/a</string>
+    <string name="report_restrict">Restrict</string>
+    <string name="report_reason_self">This app</string>
+    <string name="report_reason_core">Android core</string>
+    <string name="report_reason_already">Already restricted</string>
+    <string name="report_reason_system">Protected by the system</string>
+    <string name="report_reason_unknown">Not changeable here</string>
+    <string name="report_hint">Restrict moves the app to the Restricted standby bucket, so its jobs and alarms run rarely. Revert right after, or anytime in Standby &amp; Doze. Counts are alarm wakeups: a strong proxy for overnight drain, not exact mAh.</string>
+    <string name="report_star_title">Did that help?</string>
+    <string name="report_star_body">PULSE is free, with no ads and no tracking. A GitHub star helps other people find it.</string>
+    <string name="report_star_action">Star on GitHub</string>
+    <string name="report_star_dismiss">No thanks</string>
+    <string name="report_repo_url" translatable="false">https://github.com/kreza6173-pixel/pulse-battery</string>
+</resources>
