@@ -15,6 +15,8 @@ data class VaultSnapshot(val apps: List<String>, val vault: List<VaultEntry>)
  * Facts from the phone: shell can copy APKs out of /data/app into shared storage, but
  * system_server cannot read shared storage (fuse context), so installs are staged in
  * /data/local/tmp, which is what the pm error message itself recommends.
+ * `install-multiple` is an adb client command and does not exist on the device
+ * ("Unknown command: install-multiple"); device-side `pm install` accepts base + splits.
  */
 class VaultRepository(private val bridge: ExecBridge) {
 
@@ -78,7 +80,7 @@ class VaultRepository(private val bridge: ExecBridge) {
         if (!StandbyParsers.isValidPackage(pkg)) return ActionResult(false, "refused: $pkg")
         val dir = dirOf(pkg)
         val command = "rm -rf $STAGING; mkdir -p $STAGING && cp $dir/*.apk $STAGING/ && " +
-            "pm install-multiple -r $STAGING/*.apk; r=\$?; rm -rf $STAGING; exit \$r"
+            "pm install -r $STAGING/*.apk; r=\$?; rm -rf $STAGING; exit \$r"
         val done = when (val r = sh(command, LONG_TIMEOUT_MS)) {
             is Shell.Failed -> return ActionResult(false, r.message, pkg)
             is Shell.Done -> r
