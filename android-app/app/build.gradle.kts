@@ -4,6 +4,11 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Release signing comes only from the environment (CI secrets). Without it the release
+// build is simply unsigned, so forks and pull requests still build. See docs/RELEASE.md.
+val releaseKeystorePath: String? = System.getenv("PULSE_KEYSTORE_PATH")
+    ?.takeIf { it.isNotBlank() && file(it).exists() }
+
 android {
     namespace = "io.github.kreza6173pixel.pulsebattery"
     compileSdk = 36
@@ -17,6 +22,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseKeystorePath != null) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("PULSE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("PULSE_KEY_ALIAS")
+                keyPassword = System.getenv("PULSE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -24,6 +40,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (releaseKeystorePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

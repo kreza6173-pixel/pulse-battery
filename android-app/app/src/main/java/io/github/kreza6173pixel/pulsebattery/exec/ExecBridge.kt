@@ -3,6 +3,7 @@ package io.github.kreza6173pixel.pulsebattery.exec
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.IBinder
@@ -45,6 +46,10 @@ class ExecBridge(private val context: Context) {
      */
     private val component = ComponentName(context, ShizukuExecService::class.java)
 
+    /** Debug builds allow a debugger on the user-service process; release builds do not. */
+    private val debuggableBuild: Boolean =
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
     /**
      * One instance for bind, peek AND unbind. Building fresh args for unbind (as before) dropped
      * the mandatory processNameSuffix: UserServiceArgs.forAdd() in 13.1.5 calls
@@ -53,7 +58,7 @@ class ExecBridge(private val context: Context) {
     private val userServiceArgs: Shizuku.UserServiceArgs by lazy {
         Shizuku.UserServiceArgs(component)
             .daemon(false)
-            .debuggable(true)
+            .debuggable(debuggableBuild)
             .processNameSuffix(USER_SERVICE_PROCESS_SUFFIX)
             .version(USER_SERVICE_VERSION)
     }
@@ -161,7 +166,7 @@ class ExecBridge(private val context: Context) {
         }
         connectionState = ConnectionState.CONNECTING
         note("connect() class=${component.className}")
-        note("  args daemon=false debuggable=true version=$USER_SERVICE_VERSION")
+        note("  args daemon=false debuggable=$debuggableBuild version=$USER_SERVICE_VERSION")
         note("  processNameSuffix=$USER_SERVICE_PROCESS_SUFFIX")
         // bindUserService returns a package-private type; discard it, never let inference name it.
         val bound = try {
