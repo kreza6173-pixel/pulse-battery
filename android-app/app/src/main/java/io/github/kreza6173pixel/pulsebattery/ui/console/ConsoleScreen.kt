@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -30,24 +31,40 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.kreza6173pixel.pulsebattery.R
+import io.github.kreza6173pixel.pulsebattery.diag.DiagnosticsRepository
+import io.github.kreza6173pixel.pulsebattery.drain.DrainRepository
 import io.github.kreza6173pixel.pulsebattery.exec.ConnectionState
 import io.github.kreza6173pixel.pulsebattery.exec.ConsoleHistory
 import io.github.kreza6173pixel.pulsebattery.exec.ExecBridge
 import io.github.kreza6173pixel.pulsebattery.exec.ExecOutcome
 import io.github.kreza6173pixel.pulsebattery.exec.HistoryEntry
+import io.github.kreza6173pixel.pulsebattery.standby.StandbyRepository
 import io.github.kreza6173pixel.pulsebattery.ui.common.CopyShareButtons
 import io.github.kreza6173pixel.pulsebattery.ui.common.LtrMonoText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** The complete list of commands the built-in self-test may run. Both are read-only. */
-private val SELF_TEST_COMMANDS = listOf("id", "getprop ro.build.version.sdk")
+/** A built-in command. Every preset is read-only and was verified on a real device. */
+private class Preset(val labelRes: Int, val command: String)
+
+private val PRESETS = listOf(
+    Preset(R.string.preset_id, "id"),
+    Preset(R.string.preset_sdk, "getprop ro.build.version.sdk"),
+    Preset(R.string.preset_model, "getprop ro.product.model"),
+    Preset(R.string.preset_uptime, "uptime"),
+    Preset(R.string.preset_battery, DiagnosticsRepository.BATTERY_COMMAND),
+    Preset(R.string.preset_doze, StandbyRepository.DEEP_COMMAND),
+    Preset(R.string.preset_whitelist, StandbyRepository.WHITELIST_COMMAND),
+    Preset(R.string.preset_buckets, StandbyRepository.BUCKETS_COMMAND),
+    Preset(R.string.preset_wakeups, DrainRepository.TOTALS_COMMAND),
+    Preset(R.string.preset_alarms, DiagnosticsRepository.TOP_ALARMS_COMMAND),
+    Preset(R.string.preset_wakelocks, DiagnosticsRepository.WAKE_LOCK_COMMAND),
+    Preset(R.string.preset_apps, StandbyRepository.THIRD_PARTY_COMMAND),
+)
 
 private const val TIMEOUT_MS = 15_000
 
@@ -63,11 +80,14 @@ fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
     var entries by remember { mutableStateOf(emptyList<HistoryEntry>()) }
     var command by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    // Open by default; folds after a run so the result is right below the input.
+    var showPresets by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     // The AIDL call blocks until the command finishes, so it must never run on the main thread.
     fun run(raw: String) {
         if (busy || raw.isBlank()) return
+        showPresets = false
         scope.launch {
             busy = true
             val outcome = withContext(Dispatchers.IO) { bridge.execBlocking(raw, TIMEOUT_MS) }
@@ -159,30 +179,73 @@ fun ConsoleScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                SELF_TEST_COMMANDS.forEach { preset ->
-                    OutlinedButton(
-                        onClick = { run(preset) },
-                        enabled = !busy && connected,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            text = preset,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                textDirection = TextDirection.Ltr,
-                            ),
-                            textAlign = TextAlign.Center,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
+                Text(
+                    text = stringResource(R.string.console_presets_title, PRESETS.size),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { showPresets = !showPresets }) {
+                    Text(
+                        stringResource(
+                            if (showPresets) R.string.console_presets_hide else R.string.console_presets_show
                         )
-                    }
+                    )
                 }
             }
         }
 
+        if (showPresets) {
+            item {
+                PresetList(
+                    enabled = !busy && connected,
+                    onRun = { run(it) },
+                    onEdit = { command = it },
+                )
+            }
+        }
+
         items(entries) { entry -> HistoryCard(entry) }
+    }
+}
+
+/** One aligned list: name on top, command below in mono, actions on the end edge. */
+@Composable
+private fun PresetList(
+    enabled: Boolean,
+    onRun: (String) -> Unit,
+    onEdit: (String) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)) {
+            PRESETS.forEachIndexed { index, preset ->
+                if (index > 0) HorizontalDivider(modifier = Modifier.padding(start = 12.dp, end = 12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(preset.labelRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        LtrMonoText(
+                            text = preset.command,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = { onEdit(preset.command) }) {
+                        Text(stringResource(R.string.console_preset_edit))
+                    }
+                    TextButton(onClick = { onRun(preset.command) }, enabled = enabled) {
+                        Text(stringResource(R.string.console_preset_run))
+                    }
+                }
+            }
+        }
     }
 }
 

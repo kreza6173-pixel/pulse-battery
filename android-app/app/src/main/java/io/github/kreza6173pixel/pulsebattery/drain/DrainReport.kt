@@ -77,11 +77,16 @@ object DrainReport {
         return DrainReportResult(elapsed, rebooted, offenders.sumOf { it.wakeups }, offenders)
     }
 
+    /** "2h 5m", "45m", or "<1m" for the first minute so a fresh period never reads as 0. */
     fun formatDuration(ms: Long): String {
         val totalMin = ms.coerceAtLeast(0L) / 60_000L
         val h = totalMin / 60L
         val m = totalMin % 60L
-        return if (h > 0L) "${h}h ${m}m" else "${m}m"
+        return when {
+            h > 0L -> "${h}h ${m}m"
+            m > 0L -> "${m}m"
+            else -> "<1m"
+        }
     }
 
     fun formatRate(perHour: Double): String = String.format(Locale.US, "%.1f", perHour)

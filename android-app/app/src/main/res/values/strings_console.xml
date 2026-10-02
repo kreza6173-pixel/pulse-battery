@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="console_presets_title">Quick commands (%1$d, read-only)</string>
+    <string name="console_presets_show">Show</string>
+    <string name="console_presets_hide">Hide</string>
+    <string name="console_preset_edit">Edit</string>
+    <string name="console_preset_run">Run</string>
+
+    <string name="preset_id">Shizuku identity</string>
+    <string name="preset_sdk">Android SDK level</string>
+    <string name="preset_model">Device model</string>
+    <string name="preset_uptime">Uptime and load</string>
+    <string name="preset_battery">Battery state</string>
+    <string name="preset_doze">Deep Doze state</string>
+    <string name="preset_whitelist">Doze whitelist</string>
+    <string name="preset_buckets">Standby buckets</string>
+    <string name="preset_wakeups">Alarm wakeups per app</string>
+    <string name="preset_alarms">Top alarms</string>
+    <string name="preset_wakelocks">Active wake locks</string>
+    <string name="preset_apps">Installed user apps</string>
+</resources>
