@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_standby">Standby &amp; Doze</string>
+    <string name="standby_title">PULSE // STANDBY</string>
+    <string name="standby_doze_title">Doze</string>
+    <string name="standby_doze_state">Deep: ⁦%1$s⁩ · Light: ⁦%2$s⁩</string>
+    <string name="standby_force_idle">Force idle</string>
+    <string name="standby_unforce">Exit forced idle</string>
+    <string name="standby_doze_hint">Forcing deep idle works best with the screen off and the charger unplugged. Exit forced idle returns to normal.</string>
+    <string name="standby_show_system">Show system apps</string>
+    <string name="standby_search">Filter by package name</string>
+    <string name="standby_apps">Apps (⁦%1$d⁩)</string>
+    <string name="standby_bucket_label">Bucket: %1$s</string>
+    <string name="standby_whitelist">Doze whitelist</string>
+    <string name="standby_whitelist_system">On the system whitelist (cannot be changed)</string>
+    <string name="standby_applied">Applied and verified</string>
+    <string name="standby_not_applied">Not applied</string>
+    <string name="standby_revert_to">Revert to %1$s</string>
+    <string name="standby_working">Working…</string>
+    <string name="bucket_exempted">Exempted</string>
+    <string name="bucket_active">Active</string>
+    <string name="bucket_working_set">Working set</string>
+    <string name="bucket_frequent">Frequent</string>
+    <string name="bucket_rare">Rare</string>
+    <string name="bucket_restricted">Restricted</string>
+    <string name="bucket_never">Never</string>
+</resources>

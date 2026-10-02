@@ -27,6 +27,7 @@ import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuState
 import io.github.kreza6173pixel.pulsebattery.ui.console.ConsoleScreen
 import io.github.kreza6173pixel.pulsebattery.ui.diag.DiagnosticsScreen
 import io.github.kreza6173pixel.pulsebattery.ui.home.HomeScreen
+import io.github.kreza6173pixel.pulsebattery.ui.standby.StandbyScreen
 import io.github.kreza6173pixel.pulsebattery.ui.theme.PulseBatteryTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Screen { HOME, CONSOLE, DIAGNOSTICS }
+private enum class Screen { HOME, CONSOLE, DIAGNOSTICS, STANDBY }
 
 // TopAppBar is still @ExperimentalMaterial3Api in material3 1.4.0.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +92,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                                 Screen.HOME -> R.string.app_name
                                 Screen.CONSOLE -> R.string.console_title
                                 Screen.DIAGNOSTICS -> R.string.diag_title
+                                Screen.STANDBY -> R.string.standby_title
                             }
                         ),
                         maxLines = 1,
@@ -112,9 +114,11 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                 modifier = contentModifier,
                 onOpenConsole = { screen = Screen.CONSOLE },
                 onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
+                onOpenStandby = { screen = Screen.STANDBY },
             )
             Screen.CONSOLE -> ConsoleScreen(bridge = bridge, modifier = contentModifier)
             Screen.DIAGNOSTICS -> DiagnosticsScreen(bridge = bridge, modifier = contentModifier)
+            Screen.STANDBY -> StandbyScreen(bridge = bridge, modifier = contentModifier)
         }
     }
 }

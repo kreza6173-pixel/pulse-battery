@@ -31,6 +31,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onOpenConsole: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
+    onOpenStandby: () -> Unit = {},
 ) {
     val state = runtime.state
 
@@ -43,7 +44,7 @@ fun HomeScreen(
         StateCard(runtime)
         StateAction(runtime, state)
         UidRow(runtime)
-        // Both features need the Shizuku UserService, so they are only offered once READY.
+        // Every feature needs the Shizuku UserService, so they are only offered once READY.
         if (state == ShizukuState.READY) {
             Button(
                 onClick = onOpenDiagnostics,
@@ -51,6 +52,15 @@ fun HomeScreen(
             ) {
                 Text(
                     text = stringResource(R.string.home_open_diagnostics),
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+                )
+            }
+            Button(
+                onClick = onOpenStandby,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(R.string.home_open_standby),
                     modifier = Modifier.padding(start = 8.dp, end = 8.dp),
                 )
             }
