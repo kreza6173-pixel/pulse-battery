@@ -25,6 +25,12 @@ class DiagnosticsRepository(private val bridge: ExecBridge) {
     fun wakeLocks(): DiagResult<List<WakeLockEntry>> =
         run(WAKE_LOCK_COMMAND, setOf(0, 1)) { WakeLockParser.parse(it) }
 
+    /** grep exit 1 means no Top Alarms header: an empty table rather than an error. */
+    fun topAlarms(): DiagResult<List<TopAlarm>> =
+        run(TOP_ALARMS_COMMAND, setOf(0, 1)) { out ->
+            if (out.isBlank()) emptyList() else AlarmParser.parseTopAlarms(out)
+        }
+
     private fun <T : Any> run(
         command: String,
         okExitCodes: Set<Int>,
@@ -48,6 +54,9 @@ class DiagnosticsRepository(private val bridge: ExecBridge) {
 
         /** Filtered on the device so the 64 KiB output cap of the service is never reached. */
         const val WAKE_LOCK_COMMAND = "dumpsys power | grep -E \"_WAKE_LOCK +'\""
+
+        /** The full alarm dump overflows the cap; only the Top Alarms block is transferred. */
+        const val TOP_ALARMS_COMMAND = "dumpsys alarm | grep -A 40 \"Top Alarms:\""
 
         private const val TIMEOUT_MS = 10_000
     }

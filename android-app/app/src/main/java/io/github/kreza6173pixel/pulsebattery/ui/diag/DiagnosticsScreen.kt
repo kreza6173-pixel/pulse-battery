@@ -33,6 +33,7 @@ import io.github.kreza6173pixel.pulsebattery.diag.BatterySnapshot
 import io.github.kreza6173pixel.pulsebattery.diag.BatteryStatus
 import io.github.kreza6173pixel.pulsebattery.diag.DiagResult
 import io.github.kreza6173pixel.pulsebattery.diag.DiagnosticsRepository
+import io.github.kreza6173pixel.pulsebattery.diag.TopAlarm
 import io.github.kreza6173pixel.pulsebattery.diag.WakeLockEntry
 import io.github.kreza6173pixel.pulsebattery.exec.ConnectionState
 import io.github.kreza6173pixel.pulsebattery.exec.ExecBridge
@@ -44,12 +45,13 @@ import kotlinx.coroutines.withContext
 
 private const val REFRESH_MS = 5_000L
 
-/** M3a: live battery state and the wake locks held right now. Read-only. */
+/** M3: live battery state, wake locks held right now, and the top alarm senders. Read-only. */
 @Composable
 fun DiagnosticsScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
     val repo = remember(bridge) { DiagnosticsRepository(bridge) }
     var battery by remember { mutableStateOf<DiagResult<BatterySnapshot>?>(null) }
     var locks by remember { mutableStateOf<DiagResult<List<WakeLockEntry>>?>(null) }
+    var alarms by remember { mutableStateOf<DiagResult<List<TopAlarm>>?>(null) }
     var autoRefresh by remember { mutableStateOf(true) }
     var manualTick by remember { mutableStateOf(0) }
     val connected = bridge.connectionState == ConnectionState.CONNECTED
@@ -59,12 +61,14 @@ fun DiagnosticsScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
         while (true) {
             battery = withContext(Dispatchers.IO) { repo.battery() }
             locks = withContext(Dispatchers.IO) { repo.wakeLocks() }
+            alarms = withContext(Dispatchers.IO) { repo.topAlarms() }
             if (!autoRefresh) break
             delay(REFRESH_MS)
         }
     }
 
     val lockResult = locks
+    val alarmResult = alarms
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -99,12 +103,27 @@ fun DiagnosticsScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
 
         item { BatteryCard(battery) }
 
-        item { WakeLockHeader(lockResult) }
+        item {
+            val count = if (lockResult is DiagResult.Ok) lockResult.value.size else 0
+            SectionHeader(stringResource(R.string.diag_wakelocks, count), lockResult)
+        }
         if (lockResult is DiagResult.Ok) {
             if (lockResult.value.isEmpty()) {
                 item { Text(stringResource(R.string.diag_wakelocks_none)) }
             } else {
                 items(lockResult.value) { entry -> WakeLockRow(entry) }
+            }
+        }
+
+        item {
+            val count = if (alarmResult is DiagResult.Ok) alarmResult.value.size else 0
+            SectionHeader(stringResource(R.string.diag_alarms, count), alarmResult)
+        }
+        if (alarmResult is DiagResult.Ok) {
+            if (alarmResult.value.isEmpty()) {
+                item { Text(stringResource(R.string.diag_alarms_none)) }
+            } else {
+                items(alarmResult.value) { alarm -> AlarmRow(alarm) }
             }
         }
     }
@@ -179,16 +198,16 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
+/** Title + Copy/Share for a list section, plus loading / error text. */
 @Composable
-private fun WakeLockHeader(result: DiagResult<List<WakeLockEntry>>?) {
-    val count = if (result is DiagResult.Ok) result.value.size else 0
+private fun SectionHeader(title: String, result: DiagResult<Any?>?) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.diag_wakelocks, count),
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
             )
@@ -215,6 +234,31 @@ private fun WakeLockRow(w: WakeLockEntry) {
                 style = MaterialTheme.typography.labelMedium,
             )
             LtrMonoText(text = w.tag, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun AlarmRow(a: TopAlarm) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)) {
+            LtrMonoText(text = a.pkg, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = stringResource(R.string.diag_alarm_meta, a.wakeups, a.alarms, a.runningTime),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (a.isWakeup) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+            if (a.isWakeup) {
+                Text(
+                    text = stringResource(R.string.diag_alarm_wakes_device),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            val action = a.action
+            if (!action.isNullOrEmpty()) {
+                LtrMonoText(text = action, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

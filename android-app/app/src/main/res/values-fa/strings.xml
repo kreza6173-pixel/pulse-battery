@@ -82,4 +82,8 @@
     <string name="diag_wakelocks">قفل‌های بیداری فعال (%1$d)</string>
     <string name="diag_wakelocks_none">الان هیچ قفل بیداری فعال نیست.</string>
     <string name="diag_wakelock_meta">⁦%1$s⁩ · مدت ⁦%2$s⁩</string>
+    <string name="diag_alarms">پرکارترین آلارم‌ها (%1$d)</string>
+    <string name="diag_alarms_none">هنوز آماری از آلارم‌ها نیست.</string>
+    <string name="diag_alarm_meta">%1$d بیدارباش · %2$d آلارم · اجرا ⁦%3$s⁩</string>
+    <string name="diag_alarm_wakes_device">گوشی را از خواب بیدار می‌کند</string>
 </resources>

@@ -13,12 +13,12 @@ data class WakeLockEntry(
     val pkg: String?,
     /** Package names found in WorkSource{...}: the app the lock is really held for. */
     val workSource: List<String>,
-    /** Package named inside the tag, e.g. `*job*r/com.android.vending/...`. */
+    /** Package named inside a JobScheduler / SyncManager tag (see WakeLockParser). */
     val tagPackage: String? = null,
 ) {
     /**
      * Who the lock is really for: WorkSource packages, else the package in the tag (system
-     * services such as JobScheduler hold locks as `pkg=android` on behalf of an app), else pkg=.
+     * services such as JobScheduler hold locks as pkg=android on behalf of an app), else pkg=.
      */
     val attributedPackages: List<String>
         get() = workSource.ifEmpty { listOfNotNull(tagPackage ?: pkg) }
@@ -29,12 +29,13 @@ data class WakeLockEntry(
 }
 
 /**
- * Parses wake-lock lines of `dumpsys power`. Pure; tested against real Android 16 lines:
- *
- *   PARTIAL_WAKE_LOCK 'NotificationManagerService:post:com.x' ACQ=-151ms
- *       (uid=1000 pid=1960 pkg=android ws=WorkSource{10660 com.x})
- *
+ * Parses wake-lock lines of `dumpsys power`. Pure; tested against real Android 16 lines.
  * Lines that do not match are ignored, so the whole dump or a grep of it both work.
+ *
+ * WARNING for editors: never quote a real tag inside a block comment. Tags such as the
+ * JobScheduler one start with star-job-star-slash, and a star followed by a slash ENDS a
+ * Kotlin comment (CI run after 304564b: WakeLockParser.kt:49:16 Expecting member declaration).
+ * Examples live in WakeLockParserTest as string literals instead.
  */
 object WakeLockParser {
 
@@ -46,7 +47,7 @@ object WakeLockParser {
     private val SEPARATORS = Regex("""[\s,]+""")
     private val PACKAGE_NAME = Regex("""^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$""")
 
-    /** `*job*/pkg/...`, `*job*r/pkg/...`, `*sync*/pkg/...`, `*alarm*:pkg...` style tags. */
+    // Tag form: star, lowercase word, star, optional letter, slash or colon, package name.
     private val TAG_PACKAGE =
         Regex("""^\*[a-z_]+\*[a-z]?[/:]([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+)""")
 

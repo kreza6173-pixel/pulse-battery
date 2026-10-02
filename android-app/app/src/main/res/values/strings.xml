@@ -82,4 +82,8 @@
     <string name="diag_wakelocks">Active wake locks (%1$d)</string>
     <string name="diag_wakelocks_none">No wake lock is held right now.</string>
     <string name="diag_wakelock_meta">⁦%1$s⁩ · held ⁦%2$s⁩</string>
+    <string name="diag_alarms">Top alarms (%1$d)</string>
+    <string name="diag_alarms_none">No alarm statistics yet.</string>
+    <string name="diag_alarm_meta">%1$d wakeups · %2$d alarms · running ⁦%3$s⁩</string>
+    <string name="diag_alarm_wakes_device">Wakes the device</string>
 </resources>
