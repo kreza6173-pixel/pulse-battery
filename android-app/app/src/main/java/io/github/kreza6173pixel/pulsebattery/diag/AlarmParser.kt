@@ -32,6 +32,10 @@ object AlarmParser {
     // star, lowercase word, star, colon, rest.
     private val TAG = Regex("""^\s*\*([a-z_]+)\*:(.*)$""")
 
+    // Alarm Stats per-package header, e.g. `1000:com.miui.powerkeeper +1s531ms running, 0 wakeups:`.
+    private val STATS_TOTAL =
+        Regex("""^\s*([^:\s]+):(\S+)\s+\+?(\S+) running, (\d+) wakeups:\s*$""")
+
     /** Null when the header is absent (unexpected output); empty list when the table is. */
     fun parseTopAlarms(output: String): List<TopAlarm>? {
         val result = mutableListOf<TopAlarm>()
@@ -73,5 +77,21 @@ object AlarmParser {
         }
         flush(null)
         return if (inSection) result else null
+    }
+
+    /**
+     * Alarm wakeup totals per package from the Alarm Stats section, summed across uids
+     * (work profile, clones). Non-matching lines are ignored, so a grep-filtered dump works
+     * as well as a full one. Top Alarms lines never match: they read "wakeups, N alarms:".
+     */
+    fun parseAlarmStatsTotals(output: String): Map<String, Int> {
+        val map = LinkedHashMap<String, Int>()
+        for (line in output.lineSequence()) {
+            val m = STATS_TOTAL.matchEntire(line) ?: continue
+            val pkg = m.groupValues[2]
+            val n = m.groupValues[4].toIntOrNull() ?: continue
+            map[pkg] = (map[pkg] ?: 0) + n
+        }
+        return map
     }
 }

@@ -26,12 +26,13 @@ import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuUidKind
 
 /**
  * Home screen: Shizuku client state, exactly one next action per state, and the feature
- * entry points once READY. Padding is start/end only, so the layout mirrors under fa (RTL).
+ * entry points once READY. The drain report is the headline feature, so it comes first.
  */
 @Composable
 fun HomeScreen(
     runtime: ShizukuRuntime,
     modifier: Modifier = Modifier,
+    onOpenReport: () -> Unit = {},
     onOpenConsole: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
     onOpenStandby: () -> Unit = {},
@@ -52,6 +53,7 @@ fun HomeScreen(
         UidRow(runtime)
         // Every feature needs the Shizuku UserService, so they are only offered once READY.
         if (state == ShizukuState.READY) {
+            FeatureButton(R.string.home_open_report, onOpenReport)
             FeatureButton(R.string.home_open_diagnostics, onOpenDiagnostics)
             FeatureButton(R.string.home_open_standby, onOpenStandby)
             FeatureButton(R.string.home_open_vault, onOpenVault)

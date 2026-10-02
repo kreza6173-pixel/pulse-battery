@@ -1,5 +1,7 @@
 package io.github.kreza6173pixel.pulsebattery
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -28,15 +30,29 @@ import io.github.kreza6173pixel.pulsebattery.ui.about.AboutScreen
 import io.github.kreza6173pixel.pulsebattery.ui.console.ConsoleScreen
 import io.github.kreza6173pixel.pulsebattery.ui.diag.DiagnosticsScreen
 import io.github.kreza6173pixel.pulsebattery.ui.home.HomeScreen
+import io.github.kreza6173pixel.pulsebattery.ui.report.DrainReportScreen
 import io.github.kreza6173pixel.pulsebattery.ui.standby.StandbyScreen
 import io.github.kreza6173pixel.pulsebattery.ui.theme.PulseBatteryTheme
 import io.github.kreza6173pixel.pulsebattery.ui.vault.VaultScreen
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
 
     private val runtime by lazy { ShizukuRuntime(applicationContext) }
     private val bridge by lazy { ExecBridge(applicationContext) }
+
+    /**
+     * The app ships English only. Pin en-US so digits, layout direction and formatting stay
+     * consistent on devices set to an RTL or non-Latin-digit locale.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        Locale.setDefault(Locale.US)
+        val config = Configuration(newBase.resources.configuration)
+        config.setLocale(Locale.US)
+        config.setLayoutDirection(Locale.US)
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,7 +80,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Screen { HOME, CONSOLE, DIAGNOSTICS, STANDBY, VAULT, ABOUT }
+private enum class Screen { HOME, REPORT, CONSOLE, DIAGNOSTICS, STANDBY, VAULT, ABOUT }
 
 // TopAppBar is still @ExperimentalMaterial3Api in material3 1.4.0.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,6 +109,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                         text = stringResource(
                             when (shown) {
                                 Screen.HOME -> R.string.app_name
+                                Screen.REPORT -> R.string.report_title
                                 Screen.CONSOLE -> R.string.console_title
                                 Screen.DIAGNOSTICS -> R.string.diag_title
                                 Screen.STANDBY -> R.string.standby_title
@@ -117,12 +134,14 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
             Screen.HOME -> HomeScreen(
                 runtime = runtime,
                 modifier = contentModifier,
+                onOpenReport = { screen = Screen.REPORT },
                 onOpenConsole = { screen = Screen.CONSOLE },
                 onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
                 onOpenStandby = { screen = Screen.STANDBY },
                 onOpenVault = { screen = Screen.VAULT },
                 onOpenAbout = { screen = Screen.ABOUT },
             )
+            Screen.REPORT -> DrainReportScreen(bridge = bridge, modifier = contentModifier)
             Screen.CONSOLE -> ConsoleScreen(bridge = bridge, modifier = contentModifier)
             Screen.DIAGNOSTICS -> DiagnosticsScreen(bridge = bridge, modifier = contentModifier)
             Screen.STANDBY -> StandbyScreen(bridge = bridge, modifier = contentModifier)
