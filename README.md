@@ -1,112 +1,118 @@
+<div align="center">
+
 # PULSE // BATTERY
 
-**Battery & Wakelock Doctor, with an integrated Backup Vault** — a Shevery
-ADB module. Diagnoses what's draining your battery, gives you manual
-control over app-standby buckets and the Doze whitelist (the same
-mechanism apps like Naptime and Greenify manage), and backs up app data —
-including a real, no-root path for debug-signed apps.
+**Find out what drained your battery overnight, and fix it in one tap.**
+No root. Runs through [Shizuku](https://shizuku.rikka.app/).
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
+![Shizuku](https://img.shields.io/badge/needs-Shizuku-8E7CC3)
+![No internet](https://img.shields.io/badge/internet-none-success)
+[![Latest release](https://img.shields.io/github/v/release/kreza6173-pixel/pulse-battery)](https://github.com/kreza6173-pixel/pulse-battery/releases/latest)
+
+</div>
+
+---
+
+## Why
+
+Your phone loses 15% overnight and the system battery screen just says "Android System".
+PULSE asks Android directly which apps woke the device, ranks them, and lets you put the
+worst one to sleep. Every change is read back from the system and can be reverted in one tap.
 
 ## Features
 
+**Overnight drain report** (the headline)
+- Tap *Start new period* before bed. In the morning: apps ranked by alarm wakeups, with a per-hour rate.
+- One-tap **Restrict** moves an offender to the Restricted standby bucket. One-tap **Revert**.
+- Android keeps the counters itself, so PULSE does not run in the background. Detects reboots.
+
 **Diagnostics**
-- 🔋 Live battery gauge — level, charging status, temperature, read from `dumpsys battery`.
-- ⚡ Live wakelock snapshot — what's holding a wakelock right now, mapped to package names.
-- ⏰ Alarm activity — best-effort read of `dumpsys alarm` wakeup lines.
-- 📄 Raw per-package battery report — `dumpsys batterystats <pkg>`, shown unfiltered. Full
-  battery-stats parsing is genuinely unreliable across Android versions and OEMs, so this
-  tab intentionally shows real output instead of a confident table that might be wrong.
+- Live battery state: level, temperature, voltage, health, power source.
+- Active wake locks, attributed to the real package (including `*job*` tags).
+- Top alarms table from `dumpsys alarm`.
 
-**Standby & Doze control**
-- 🪣 App standby bucket viewer/setter — `am get/set-standby-bucket`, the same testing API
-  Android's own docs describe for controlling how freely an app runs in the background.
-- 🌙 Doze whitelist manager — add/remove apps from battery-optimization exemption in bulk.
-- 🧪 Force-idle / unforce — push the device into Doze on demand to test whether an app survives it.
+**Standby & Doze**
+- See and change the standby bucket of every app, with raw bucket codes shown.
+- Add or remove apps from the user Doze whitelist.
+- Force deep Doze on demand to test whether an app survives it.
 
-**Backup Vault**
-- 📦 APK export (base + splits) for any app, no root needed.
-- 💾 Full app-data backup for **any app when rooted**, or for **debug-signed apps without
-  root** via `run-as` — see below, this is a real distinction the module makes automatically.
-- 🔁 Restore — reinstall APKs and restore data from a saved vault.
-- 🗂 Vault browser with delete.
-- 🌗 Light/dark theme toggle, remembered per device.
+**Vault (APK backup)**
+- Export base + split APKs of any app to `Download/PulseVault`. Survives uninstalling PULSE.
+- Restore with one tap.
 
-## The run-as discovery
-
-A common question: is full app-data backup really impossible without root? **Not always.**
-Apps built with a debug key (`android:debuggable="true"`, which is the default for a debug
-build) can have their private data read by the `shell`/ADB user via `run-as <pkg>` — this is
-a real, documented Android mechanism, not a workaround. This module detects debuggable apps
-automatically during the backup scan and offers full data backup for them even with no root
-at all. Release-signed apps still need root for data backup — that restriction is a genuine
-Android sandboxing boundary, not a limitation of this module.
+**Console**
+- Run any shell command as the Shizuku user, with 12 read-only quick commands, cancel, copy and share.
 
 ## Requirements
 
-- [Shevery](https://github.com/HmnDev-Tech/shevery), access mode **Full** (or **Custom**
-  with "WebUI shell bridge" enabled).
-- No root needed for diagnostics, standby/Doze control, APK backup, and debuggable-app data backup.
-- Root needed only for data backup of **release-signed** apps.
+- Android 8.0 or newer.
+- [Shizuku](https://shizuku.rikka.app/) running (wireless debugging, ADB or root).
+- That is it. No root, no internet permission, no account, no ads, no trackers.
 
 ## Install
 
-**From a release ZIP:** ADB Modules → Import → select the ZIP. `module.prop` sits at the
-ZIP's root — if packaging from source, `cd` into the folder before zipping:
+Download the APK from [Releases](https://github.com/kreza6173-pixel/pulse-battery/releases/latest).
+On first launch PULSE asks Shizuku for permission. If Shizuku says allowed but PULSE still
+asks, tap **Restart app** (some Shizuku builds apply a new grant only to a fresh process).
 
-```bash
-git clone https://github.com/kreza6173-pixel/pulse-battery.git
-cd pulse-battery
-zip -r ../pulse-battery.zip . -x ".git/*"
-```
-
-## Architecture
+Release signing certificate SHA-256:
 
 ```
-pulse-battery/
-├── module.prop      # Module manifest (usesShellBridge=true)
-├── lib.sh            # Shared shell helpers
-├── action.sh          # Read-only summary shown on the module's Action button
-├── webui/
-│   ├── index.html        # Vitals / Standby & Doze / Backup / Restore tabs
-│   ├── style.css           # PULSE design system — light, clinical-instrument aesthetic
-│   └── script.js             # window.Shizuku.exec() shell bridge + all UI logic
-├── LICENSE
-└── README.md
+3f8c1e2df2deaf9d561a8fdce3c667ed0ceda972622f20d006a1b6098c2a2512
 ```
+
+## FAQ
+
+**Is Restrict safe?** It uses the same standby-bucket API Android itself uses. Restricted apps
+still work when you open them; their background jobs and alarms just run rarely. Messaging
+apps may deliver notifications late, so do not restrict the ones you need instantly.
+Revert is one tap, or change the bucket anytime in *Standby & Doze*.
+
+**Why alarm wakeups and not mAh?** Per-app mAh estimates are unreliable across vendors and
+Android versions. Wakeups are counted by the system, are exact, and are the usual cause of
+overnight drain.
+
+**Some apps say "Protected by the system".** Android marks core and some vendor apps as
+exempted. Their bucket cannot be changed without root, so PULSE does not pretend it can.
+
+**Does PULSE drain battery itself?** No. Nothing runs while the app is closed. The report
+screen refreshes once a minute only while it is open.
+
+**Root features?** Not in 1.0. Anything that needs root stays locked until it can be tested on
+a real rooted device.
 
 ## How it works
 
-| Feature | Shell mechanism |
+| Feature | Command |
 |---|---|
-| Battery vitals | `dumpsys battery` — level, status, temperature |
-| Live wakelocks | `dumpsys power`, mapped to packages via `pm list packages -U` |
-| Alarm activity | `dumpsys alarm`, grepped for wakeup lines (best-effort) |
-| Raw battery report | `dumpsys batterystats <pkg>` |
+| Drain report | `dumpsys alarm` (Alarm Stats per-package totals) |
+| Battery | `dumpsys battery` |
+| Wake locks | `dumpsys power` |
 | Standby bucket | `am get-standby-bucket` / `am set-standby-bucket` |
-| Doze whitelist | `dumpsys deviceidle whitelist` (read), `whitelist +pkg` / `-pkg` (write) |
+| Doze whitelist | `dumpsys deviceidle whitelist +pkg` / `-pkg` |
 | Force Doze | `dumpsys deviceidle force-idle` / `unforce` |
-| Debuggable detection | `dumpsys package <pkg>`, checked for `DEBUGGABLE` in the flags line |
-| APK export | `pm path <pkg>` → `cp` each split |
-| Data backup (root) | `tar czf <dest>/data.tar.gz -C /data/data <pkg>` |
-| Data backup (run-as) | `run-as <pkg> sh -c "cd /data/data && tar czf - <pkg>"` |
-| APK restore | `pm install-multiple -r <apks…>` |
-| Data restore | `tar xzf … -C /data/data` (root) or piped through `run-as … tar xzf -` (debuggable) |
+| APK export | `pm path` then `cp` |
+| Restore | staged in `/data/local/tmp`, then `pm install -r` |
 
-## Known limitations
+All parsers are pure Kotlin, unit-tested against real device output. Package names are
+validated and shell-quoted before any command runs.
 
-- **Wakelock and alarm views are heuristic.** `dumpsys power`/`dumpsys alarm` output format
-  varies across Android versions and OEMs. When parsing comes up empty, the raw dump is
-  always in the console drawer.
-- **The raw battery report is intentionally raw.** Full `dumpsys batterystats` structure is
-  complex enough, and changes often enough across versions, that a confident-looking parsed
-  table would risk being wrong. You get the real data instead.
-- **Data restore works best when the app version matches** the version it was backed up
-  from — true for both the root and run-as paths, same caveat any root-level data restore
-  tool (Titanium Backup and similar) carries.
-- **run-as backup/restore depends on real device behavior** this project's test sandbox
-  can't simulate (no Android runtime available while building it). The command choices are
-  drawn from well-documented, widely-used `run-as` techniques, but if you hit an edge case,
-  the console drawer shows exactly what ran and what it returned.
+## Build
+
+CI is the build system: every push builds, tests, lints and uploads `app-debug`.
+With signing secrets present it also builds a signed `app-release`. See [docs/RELEASE.md](docs/RELEASE.md).
+
+Toolchain: AGP 8.13.1, Kotlin 2.2.21, Gradle 8.13, Compose BOM 2025.12.00, compile/target SDK 36,
+Shizuku API 13.1.5.
+
+## Support
+
+If PULSE saved your battery, a star helps other people find it.
+Contributions and bug reports are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). Uses Shizuku-API (MIT), AndroidX, Jetpack Compose and Kotlin
+(Apache-2.0).

@@ -1,108 +1,110 @@
-# PULSE // BATTERY — راهنمای ادامهٔ کار (Handoff)
+# PULSE // BATTERY: handoff guide
 
-> برای وقتی که کار با مدل یا ایجنت دیگری ادامه پیدا می‌کند. اول کل فایل را بخوان.
-> اگر چیزی اینجا با ریپو یا لاگ CI نمی‌خواند، **ریپو و لاگ مرجع‌اند**.
-> توضیحات فارسی، پرامپت‌ها انگلیسی. به‌روزشده: 2026-10-02.
+> For when work continues with another model or agent. Read the whole file first.
+> If anything here disagrees with the repo or a CI log, **the repo and the log win**.
+> Updated: 2026-10-02.
 
 ---
 
-## ۱. وضعیت فعلی (با شاهد)
+## 1. Status (with evidence)
 
-| مرحله | وضعیت | شاهد روی گوشی |
+| Step | Status | Evidence on the phone |
 |---|---|---|
-| M0 اسکلت + CI | ✅ | run سبز `36795807603` |
-| M1 ماشین حالت Shizuku | ✅ | PERMISSION_NEEDED ← READY، uid 2000 |
-| M2 UserService + کنسول | ✅ | اتصال در ۳ ثانیه، `id` ← `uid=2000(shell)`، لغو ← exit 124، redaction |
-| M3 تشخیص | ✅ | باتری، wakelock با نسبت درست (`com.android.vending`)، ۱۰ آلارم برتر |
-| M4 Standby و Doze | ✅ | `app.yuki` working_set ← rare و برگشت؛ فهرست سفید Added/Removed؛ force-idle ← deep IDLE، unforce ← ACTIVE؛ ۵۰۵ اپ |
-| M5a/b گاوصندوق APK | ✅ | خروجی ۳ اپ (تا ۱۲۸ مگابایت)، حذف، بازیابی `app.morphe.manager` ← `Success` |
-| M5c پشتیبان داده | ⏸ | فقط debuggable با `run-as` (تست دستی کار کرد). روت **عمداً قفل** |
-| Final | 🔄 در حال انجام | آیکون + صفحهٔ درباره/مجوزها انجام شد؛ بقیه بخش ۵ |
+| M0 skeleton + CI | done | green run `36795807603` |
+| M1 Shizuku state machine | done | PERMISSION_NEEDED to READY, uid 2000 |
+| M2 UserService + console | done | connects in 3 s, `id` gives `uid=2000(shell)`, cancel gives exit 124, redaction |
+| M3 diagnostics | done | battery, wake locks attributed correctly, top 10 alarms |
+| M4 Standby and Doze | done | `app.yuki` working_set to rare and back; whitelist Added/Removed; force-idle gives deep IDLE, unforce ACTIVE; 505 apps |
+| M5a/b APK Vault | done | export of 3 apps (up to 128 MB), delete, restore `app.morphe.manager` gives `Success` |
+| M5c data backup | paused | debuggable apps via `run-as` only (manual test worked). Root **deliberately locked** |
+| Drain report | done | overnight period verified on the phone |
+| Release signing | done | CI builds signed `app-release`, cert `CN=PULSE, O=kreza6173-pixel` |
+| v1.0 launch | in progress | see section 5 |
 
-دستگاه مرجع: **Xiaomi، Android 16 (SDK 36)، Shizuku با uid 2000، فارسی/RTL**.
-شاخه: `native-app-v0`. package: `io.github.kreza6173pixel.pulsebattery`.
-
----
-
-## ۲. حقایق معماری که نباید دست بخورند
-
-1. **UserService خودش binder است، نه `android.app.Service`.** `ShizukuExecService : IUserService.Stub()` با سازندهٔ بی‌آرگومان. سرور Shizuku کلاس را با reflection می‌سازد و به `IBinder` کست می‌کند (`RikkaApps/Shizuku-API` ← `server-shared/.../server/UserService.java`).
-2. سرویس در manifest تعریف **نمی‌شود**. manifest مجوز INTERNET ندارد و نباید داشته باشد.
-3. `processNameSuffix("user_service")` در 13.1.5 اجباری است. یک نمونهٔ `UserServiceArgs` برای bind/peek/unbind.
-4. AIDL: `destroy() = 16777114`، `exec = 1`، `cancel = 2`. با هر تغییر سرویس، `USER_SERVICE_VERSION` را بالا ببر.
-5. تنها مسیر اجرای دستور: `ExecBridge.execBlocking` از `Dispatchers.IO`.
-6. خروجی سرویس حداکثر 64 KiB؛ روی گوشی با `grep` فیلتر کن.
-7. parserها خالص و با خروجی **واقعی گوشی** تست می‌شوند.
-8. متن فنی با `LtrMonoText`. هر عدد داخل رشتهٔ فارسی بین `\u2066` و `\u2069`.
-9. هر دستور نوشتنی بعد از اجرا با دستور خواندنی **تأیید** می‌شود و فقط آن‌وقت «اعمال و تأیید شد».
-10. نام بسته قبل از shell هم با regex چک و هم با `ShellQuoting.quote` کوت می‌شود.
-11. نسخه‌ها ثابت‌اند: AGP 8.13.1، Kotlin 2.2.21، Gradle 8.13، BOM 2025.12.00، SDK 36، Shizuku 13.1.5. **هرگز SDK 37 یا AGP 9.**
+Reference device: **Xiaomi, Android 16 (SDK 36), Shizuku as uid 2000, device locale fa (RTL)**.
+The app is English-only and pins en-US in `MainActivity.attachBaseContext`.
+Branch: `native-app-v0`. Package: `io.github.kreza6173pixel.pulsebattery`.
 
 ---
 
-## ۳. چک‌لیست هر push
+## 2. Architecture facts that must not change
 
-- [ ] diff را کامل یک بار بخوان.
-- [ ] هر push یک هدف. حداکثر ۲ push در هر مرحله مگر با اجازهٔ رضا.
-- [ ] فقط **run آخر** مهم است: سبز + آرتیفکت `app-debug`.
-- [ ] قرمز: فقط خطوط `e:` از آرتیفکت `build-log`. **اولین** `e:` علت است.
-- [ ] CI سبز یعنی کامپایل و تست واحد، نه «کار می‌کند».
-- [ ] رشتهٔ جدید در `values/` **و** `values-fa/`، بدون آپاستروف در انگلیسی.
-- [ ] بعد از تأیید گوشی، جدول بخش ۱ را به‌روز کن.
+1. **The UserService is a binder, not an `android.app.Service`.** `ShizukuExecService : IUserService.Stub()` with a no-arg constructor. The Shizuku server instantiates it by reflection and casts it to `IBinder` (`RikkaApps/Shizuku-API`, `server-shared/.../server/UserService.java`).
+2. The service is **not** declared in the manifest. The manifest has no INTERNET permission and must not get one.
+3. `processNameSuffix("user_service")` is mandatory in 13.1.5. One `UserServiceArgs` instance for bind, peek and unbind. `debuggable` follows `FLAG_DEBUGGABLE`.
+4. AIDL: `destroy() = 16777114`, `exec = 1`, `cancel = 2`. Bump `USER_SERVICE_VERSION` on any service change.
+5. The only way to run a command: `ExecBridge.execBlocking` from `Dispatchers.IO`.
+6. Service output is capped at 64 KiB; filter on the device with `grep`.
+7. Parsers are pure and tested with **real device output**.
+8. Shell text uses `LtrMonoText`. Numbers next to units are wrapped in `\u2066 ... \u2069`.
+9. Every write is followed by a read-back and is reported as applied only if it matches.
+10. Package names are regex-checked and quoted with `ShellQuoting.quote` before the shell.
+11. Pinned versions: AGP 8.13.1, Kotlin 2.2.21, Gradle 8.13, BOM 2025.12.00, SDK 36, Shizuku 13.1.5. **Never SDK 37 or AGP 9.**
+12. Release signing only from CI secrets (`docs/RELEASE.md`). Workflow files need the repo owner to edit them.
 
 ---
 
-## ۴. تله‌هایی که run یا تست سوزاندند
+## 3. Checklist for every push
 
-| تله | راه درست |
+- [ ] Read the whole diff once.
+- [ ] One goal per push.
+- [ ] Only the **latest run** matters: green plus the `app-debug` artifact.
+- [ ] Red: only the `e:` lines from the `build-log` artifact. The **first** `e:` is the cause.
+- [ ] Green CI means it compiles and unit tests pass, not that it works.
+- [ ] New strings in `values/` only (English). No apostrophes unless escaped.
+- [ ] After phone confirmation, update the table in section 1.
+
+---
+
+## 4. Traps that already cost a run or a test
+
+| Trap | Do this instead |
 |---|---|
-| نمونهٔ تگ (ستاره-job-ستاره-اسلش) داخل `/** */` | ستاره+اسلش کامنت را می‌بندد؛ نمونه را در تست به‌صورت string بگذار |
-| `as? Generic` بدون نوع | `if (x is DiagResult.Ok) x.value` |
-| `CharArray` به جای `CharSequence` | `String(chunk, 0, n)` |
-| `ExecutorService.submit { }` | از `synchronized` استفاده کن |
-| `Int.coerceIn(Long, Long)` | اول `toLong()` |
-| `Intent.setPackage(...)` زنجیری | void است؛ جدا بنویس |
-| `SmallTopAppBar` | در material3 1.4.0 نیست؛ `TopAppBar` + `@OptIn` |
-| `ConsoleHistory.items` را برعکس کردن | خودش newest-first است |
-| `SelectionContainer` در `LazyColumn` | روی گوشی کار نکرد؛ `CopyShareButtons` |
-| عدد فارسی کنار `·` یا واحد لاتین | `\u2066%1$d\u2069` |
-| `pm install /sdcard/...` | system_server به fuse دسترسی ندارد؛ از `/data/local/tmp` نصب کن |
-| `pm install-multiple` | فقط دستور adb است؛ روی گوشی `pm install -r base.apk split*.apk` |
-| مسیر APK در `upload-artifact` | `android-app/**/build/outputs/apk/debug/app-debug.apk` |
-| اعتماد به گزارش ایجنت یا docs | فقط run، لاگ و تست گوشی شاهدند |
+| A `*job*` tag sample inside a block comment | star + slash closes the comment; put samples in test strings |
+| `as? Generic` without type arguments | `if (x is DiagResult.Ok) x.value` |
+| `CharArray` instead of `CharSequence` | `String(chunk, 0, n)` |
+| `ExecutorService.submit { }` | use `synchronized` |
+| `Int.coerceIn(Long, Long)` | call `toLong()` first |
+| chaining `Intent.setPackage(...)` | it returns void; separate statement |
+| `SmallTopAppBar` | not in material3 1.4.0; `TopAppBar` + `@OptIn` |
+| reversing `ConsoleHistory.items` | already newest-first |
+| `SelectionContainer` in a `LazyColumn` | did not work on the phone; `CopyShareButtons` |
+| `pm install /sdcard/...` | system_server cannot read fuse; install from `/data/local/tmp` |
+| `pm install-multiple` | adb-only; on device use `pm install -r base.apk split*.apk` |
+| APK path in `upload-artifact` | `android-app/**/build/outputs/apk/debug/app-debug.apk` |
+| pushing `.github/workflows/*` via the API | needs the `workflow` scope; ask the owner to paste it |
+| secrets saved under Variables | must be under Secrets, or the workflow sees `null` |
+| trusting an agent report or the docs | only runs, logs and phone tests count |
 
 ---
 
-## ۵. باقی‌ماندهٔ Final (به ترتیب)
+## 5. Remaining for v1.0 (in order)
 
-1. ~~آیکون adaptive + monochrome~~ ✅ (تأیید بصری روی گوشی لازم)
-2. ~~صفحهٔ درباره و مجوزها~~ ✅
-3. `debuggable` سرویس فقط در بیلد debug (از `ApplicationInfo.FLAG_DEBUGGABLE`).
-4. بیلد **release امضاشده** در CI: کلید در GitHub Secrets (رضا باید یک بار keystore بسازد؛ راهنما جدا). `versionCode`/`versionName` = 1 / 1.0.0.
-5. `fastlane/metadata/android/{en-US,fa-IR}`: عنوان، توضیح کوتاه و بلند، اسکرین‌شات‌ها.
-6. README جدید (اپ نیتیو به جای ماژول) + ادغام `native-app-v0` در `main`.
-7. تگ `v1.0.0` و GitHub Release با APK امضاشده، بعد درخواست IzzyOnDroid.
+1. Owner: enable Discussions, set repo topics and social preview, take screenshots into `fastlane/metadata/android/en-US/images/phoneScreenshots/`.
+2. Decide on the legacy module files at the repo root (`module.prop`, `lib.sh`, `action.sh`, `webui/`).
+3. Merge `native-app-v0` into `main`, tag `v1.0.0`, GitHub Release with the signed APK.
+4. Submit to IzzyOnDroid, then F-Droid; awesome-shizuku list; AlternativeTo; launch posts.
 
 ---
 
-## ۶. نقشهٔ راه پروژه‌ها (توافق‌شده)
+## 6. Project roadmap (agreed)
 
-1. **PULSE // BATTERY v1.0** (همین).
-2. **ریپوی template** از M0 تا M2: هستهٔ Shizuku، کنسول، `ui/common`، CI. کپی، نه کتابخانهٔ مشترک.
-3. **VOID // APPS**: ادغام Cyber App Manager + Autostart + Privacy Audit + Purge + Install (همه لیست اپ + `pm`/`appops`).
-4. **VOID // WALL**: فایروال، جدا (ریسک قطع اینترنت).
-5. void-pulse فعلاً کنار (EQ سراسری سرویس نیتیو می‌خواهد).
-6. قابلیت‌های روت: دیده شوند ولی قفل، تا وقتی یک کاربر روت واقعی با حالت «فقط نمایش دستور» تست کند.
+1. **PULSE // BATTERY v1.0** (this repo).
+2. **Template repo** from M0 to M2: Shizuku core, console, `ui/common`, CI, signing. Copy, not a shared library.
+3. **VOID // APPS**: merges Cyber App Manager, Autostart, Privacy Audit, Purge and Install (all app list + `pm`/`appops`).
+4. **VOID // WALL**: firewall, separate (risk of cutting the network).
+5. void-pulse on hold (a global EQ needs a native service).
+6. Root features: visible but locked until a real rooted user tests them with a "show command only" mode.
 
 ---
 
-## ۷. پرامپت آماده برای ایجنت (Kilo / Jules)
+## 7. Ready prompt for an agent
 
 ```text
 Repo kreza6173-pixel/pulse-battery, branch native-app-v0. Read docs/HANDOFF.md first,
 fully. It is the source of truth together with the code; CI logs beat both.
 
-TASK: <one step from section 5>
+TASK: <one step>
 
 Hard rules:
 - Do NOT change toolchain versions. Never SDK 37, never AGP 9.
@@ -110,13 +112,12 @@ Hard rules:
   If you change the service, bump USER_SERVICE_VERSION.
 - New parsers: pure Kotlin + unit test from REAL phone output pasted below.
 - Never put a star followed by a slash inside a block comment.
-- New strings in values/ AND values-fa/. Numbers in fa strings wrapped in
-  \u2066 ... \u2069. Shell text rendered with LtrMonoText.
+- Strings in values/ only, English. Shell text rendered with LtrMonoText.
 - Every write command is followed by a read-back; report "applied" only if it matches.
-- Re-read the whole diff before pushing. Max 2 pushes.
+- Re-read the whole diff before pushing.
 - Push: git push origin HEAD:native-app-v0
 - Report: run id, green/red, artifact app-debug exists. If red, quote ONLY e: lines.
-- Nothing "works" until I confirm on the phone. End with exactly what I should tap
+- Nothing "works" until the owner confirms on the phone. End with exactly what to tap
   and which output to copy back.
 
 Real phone output for this task:

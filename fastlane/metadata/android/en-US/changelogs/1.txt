@@ -1,0 +1,6 @@
+First release.
+- Overnight drain report with one-tap Restrict and Revert
+- Battery, wake lock and alarm diagnostics
+- Standby bucket and Doze whitelist control, force Doze
+- APK Vault: export and restore
+- Shell console with read-only quick commands

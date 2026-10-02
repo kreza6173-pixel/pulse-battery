@@ -1,0 +1,23 @@
+<p>Your phone loses battery overnight and the system screen only says "Android System". <b>PULSE // BATTERY</b> asks Android directly which apps woke the device, ranks them, and lets you put the worst one to sleep in one tap. No root needed: it runs through <a href="https://shizuku.rikka.app/">Shizuku</a>.</p>
+
+<p><b>Overnight drain report</b></p>
+<ul>
+<li>Start a period before bed, read the ranking in the morning.</li>
+<li>Apps ranked by alarm wakeups, with a per-hour rate.</li>
+<li>One-tap Restrict (Restricted standby bucket) and one-tap Revert.</li>
+<li>Android keeps the counters, so nothing runs in the background. Reboots are detected.</li>
+</ul>
+
+<p><b>Diagnostics</b>: live battery state, active wake locks attributed to the real package, top alarms.</p>
+
+<p><b>Standby &amp; Doze</b>: view and change the standby bucket of every app, manage the user Doze whitelist, force deep Doze on demand.</p>
+
+<p><b>Vault</b>: export base and split APKs of any app to Download/PulseVault and restore them with one tap.</p>
+
+<p><b>Console</b>: run shell commands as the Shizuku user, with read-only quick commands, cancel, copy and share.</p>
+
+<p>Every change is read back from the system before it is reported as applied.</p>
+
+<p><b>Privacy</b>: no internet permission, no account, no ads, no trackers. Open source, MIT licensed.</p>
+
+<p><b>Requires</b>: Android 8.0+ and Shizuku running (wireless debugging, ADB or root).</p>
