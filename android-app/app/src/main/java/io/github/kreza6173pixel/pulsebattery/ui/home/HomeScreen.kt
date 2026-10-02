@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -32,12 +34,14 @@ fun HomeScreen(
     onOpenConsole: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
     onOpenStandby: () -> Unit = {},
+    onOpenVault: () -> Unit = {},
 ) {
     val state = runtime.state
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -46,24 +50,9 @@ fun HomeScreen(
         UidRow(runtime)
         // Every feature needs the Shizuku UserService, so they are only offered once READY.
         if (state == ShizukuState.READY) {
-            Button(
-                onClick = onOpenDiagnostics,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = stringResource(R.string.home_open_diagnostics),
-                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
-                )
-            }
-            Button(
-                onClick = onOpenStandby,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = stringResource(R.string.home_open_standby),
-                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
-                )
-            }
+            FeatureButton(R.string.home_open_diagnostics, onOpenDiagnostics)
+            FeatureButton(R.string.home_open_standby, onOpenStandby)
+            FeatureButton(R.string.home_open_vault, onOpenVault)
             OutlinedButton(
                 onClick = onOpenConsole,
                 modifier = Modifier.fillMaxWidth(),
@@ -75,6 +64,19 @@ fun HomeScreen(
             }
         }
         RefreshButton(runtime)
+    }
+}
+
+@Composable
+private fun FeatureButton(labelRes: Int, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = stringResource(labelRes),
+            modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+        )
     }
 }
 

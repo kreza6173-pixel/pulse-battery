@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_vault">گاوصندوق پشتیبان</string>
+    <string name="vault_title">PULSE // VAULT</string>
+    <string name="vault_where">پشتیبان APKها اینجا ذخیره می‌شود:</string>
+    <string name="vault_data_locked">پشتیبان دادهٔ برنامه‌ها ریشه یا برنامهٔ debuggable لازم دارد و با دسترسی پوستهٔ شیزوکو ارائه نمی‌شود.</string>
+    <string name="vault_saved">پشتیبان‌های ذخیره‌شده (⁦%1$d⁩)</string>
+    <string name="vault_empty">هنوز پشتیبانی نیست. از فهرست پایین یک برنامه را خروجی بگیرید.</string>
+    <string name="vault_apps">برنامه‌های نصب‌شده (⁦%1$d⁩)</string>
+    <string name="vault_entry_meta">⁦%1$d⁩ فایل APK · ⁦%2$.1f⁩ مگابایت</string>
+    <string name="vault_export">خروجی APK</string>
+    <string name="vault_restore">بازیابی</string>
+    <string name="vault_delete">حذف</string>
+    <string name="vault_confirm">برای تأیید دوباره بزنید</string>
+    <string name="vault_cancel">انصراف</string>
+</resources>
