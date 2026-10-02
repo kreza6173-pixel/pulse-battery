@@ -5,7 +5,8 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Uses the GitHub-hosted Gradle action. No secrets are required for debug builds.
+# Debug builds need no secrets. The signed release step runs only when the
+# PULSE_KEYSTORE_BASE64 secret exists (never on pull requests from forks).
 permissions:
   contents: read
 
@@ -54,11 +55,41 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          # `uses:` steps ignore defaults.run.working-directory, so this path is
-          # resolved from the repository root. Module `:app` lives at
-          # android-app/app, so AGP writes the APK to
-          # android-app/app/build/outputs/apk/debug/app-debug.apk.
           path: android-app/**/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Build signed release (only when the keystore secret exists)
+        id: release
+        if: success()
+        env:
+          KS_B64: ${{ secrets.PULSE_KEYSTORE_BASE64 }}
+          PULSE_KEYSTORE_PASSWORD: ${{ secrets.PULSE_KEYSTORE_PASSWORD }}
+          PULSE_KEY_ALIAS: ${{ secrets.PULSE_KEY_ALIAS }}
+          PULSE_KEY_PASSWORD: ${{ secrets.PULSE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "No keystore secret: skipping the signed release build."
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          export PULSE_KEYSTORE_PATH="${RUNNER_TEMP}/release.jks"
+          echo "$KS_B64" | base64 -d > "$PULSE_KEYSTORE_PATH"
+          gradle :app:assembleRelease --no-daemon --console=plain --stacktrace 2>&1 | tee -a "${RUNNER_TEMP}/build.log"
+          code=${PIPESTATUS[0]}
+          rm -f "$PULSE_KEYSTORE_PATH"
+          if [ "$code" -ne 0 ]; then exit "$code"; fi
+          apk="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$apk" ]; then echo "::error::signed APK missing (check alias / passwords)"; exit 1; fi
+          BT="${ANDROID_HOME:-${ANDROID_SDK_ROOT}}/build-tools/36.0.0"
+          "$BT/apksigner" verify --print-certs "$apk" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed release APK
+        if: steps.release.outputs.built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: android-app/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
       - name: Upload build log
@@ -72,7 +103,7 @@ jobs:
         if: failure()
         run: |
           {
-            echo "## ❌ PULSE native-app-v0 build failed (gradle exit ${{ steps.build.outputs.gradle_exit }})"
+            echo "## PULSE build failed (gradle exit ${{ steps.build.outputs.gradle_exit }})"
             echo
             echo '```'
             tail -n 40 "${RUNNER_TEMP}/build.log"
