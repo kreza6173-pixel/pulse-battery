@@ -21,6 +21,16 @@ Your phone loses 15% overnight and the system battery screen just says "Android 
 PULSE asks Android directly which apps woke the device, ranks them, and lets you put the
 worst one to sleep. Every change is read back from the system and can be reverted in one tap.
 
+## Screenshots
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_drain_report.jpg" width="19%" alt="Overnight drain report">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_diagnostics.jpg" width="19%" alt="Diagnostics">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_standby.jpg" width="19%" alt="Standby and Doze">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_vault.jpg" width="19%" alt="APK Vault">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_console.jpg" width="19%" alt="Console">
+</p>
+
 ## Features
 
 **Overnight drain report** (the headline)
