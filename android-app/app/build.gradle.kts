@@ -58,6 +58,13 @@ android {
         aidl = true
     }
 
+    // The encrypted dependency block is readable only by Google. F-Droid and IzzyOnDroid
+    // ask for it to be removed, and nothing in this app needs it.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     packaging {
         resources {
             excludes += setOf(
