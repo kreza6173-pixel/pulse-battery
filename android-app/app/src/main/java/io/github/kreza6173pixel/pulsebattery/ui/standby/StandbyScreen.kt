@@ -247,6 +247,15 @@ private fun AppRow(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val current = row.bucket
+    val code = row.bucketCode
+    // A code outside the seven framework constants (or none at all) is shown raw and stays
+    // changeable; only EXEMPTED and NEVER are locked by the system.
+    val bucketText = when {
+        current != null -> stringResource(bucketRes(current))
+        code != null -> stringResource(R.string.standby_bucket_code, code)
+        else -> stringResource(R.string.diag_unknown)
+    }
+    val changeable = current == null || current.settable
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)) {
             LtrMonoText(text = row.pkg, style = MaterialTheme.typography.bodyMedium)
@@ -257,9 +266,9 @@ private fun AppRow(
                 Box(modifier = Modifier.weight(1f)) {
                     OutlinedButton(
                         onClick = { menuOpen = true },
-                        enabled = enabled && current?.settable == true,
+                        enabled = enabled && changeable,
                     ) {
-                        Text(stringResource(R.string.standby_bucket_label, stringResource(bucketRes(current))))
+                        Text(stringResource(R.string.standby_bucket_label, bucketText))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         StandbyBucket.SETTABLE.forEach { b ->

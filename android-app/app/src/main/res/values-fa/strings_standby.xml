@@ -11,6 +11,7 @@
     <string name="standby_search">جستجوی نام بسته</string>
     <string name="standby_apps">برنامه‌ها (⁦%1$d⁩)</string>
     <string name="standby_bucket_label">رده: %1$s</string>
+    <string name="standby_bucket_code">کد ⁦%1$d⁩</string>
     <string name="standby_whitelist">فهرست سفید Doze</string>
     <string name="standby_whitelist_system">در فهرست سفید سیستم (قابل تغییر نیست)</string>
     <string name="standby_applied">اعمال و تأیید شد</string>

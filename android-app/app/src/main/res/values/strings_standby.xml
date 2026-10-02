@@ -11,6 +11,7 @@
     <string name="standby_search">Filter by package name</string>
     <string name="standby_apps">Apps (⁦%1$d⁩)</string>
     <string name="standby_bucket_label">Bucket: %1$s</string>
+    <string name="standby_bucket_code">code ⁦%1$d⁩</string>
     <string name="standby_whitelist">Doze whitelist</string>
     <string name="standby_whitelist_system">On the system whitelist (cannot be changed)</string>
     <string name="standby_applied">Applied and verified</string>
