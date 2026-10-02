@@ -39,6 +39,15 @@ class ShizukuRuntime(private val context: Context) {
     var uid: Int by mutableStateOf(-1)
         private set
 
+    /**
+     * Shizuku reported GRANTED, but asking the server still says denied. Seen on the user's
+     * Shizuku build: the server applies a new grant only to newly attached processes, so the
+     * app has to restart. The client library cannot change the server's answer
+     * (Shizuku.checkSelfPermission asks the server; the result callback does not set it).
+     */
+    var grantedButNotApplied: Boolean by mutableStateOf(false)
+        private set
+
     val uidKind: ShizukuUidKind get() = classifyUid(uid)
 
     /** Set when `Shizuku.shouldShowRequestPermissionRationale()` is true. */
@@ -47,7 +56,11 @@ class ShizukuRuntime(private val context: Context) {
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener { refresh() }
     private val binderDeadListener = Shizuku.OnBinderDeadListener { refresh() }
     private val permissionResultListener =
-        Shizuku.OnRequestPermissionResultListener { _, _ -> refresh() }
+        Shizuku.OnRequestPermissionResultListener { _, grantResult ->
+            refresh()
+            grantedButNotApplied =
+                grantResult == PERMISSION_GRANTED && state == ShizukuState.PERMISSION_NEEDED
+        }
 
     /** Registers the three listeners and performs an immediate refresh. */
     fun start() {
@@ -75,6 +88,7 @@ class ShizukuRuntime(private val context: Context) {
         signals = ShizukuSignals(installed, alive, granted, rationale)
         state = resolveShizukuState(signals)
         uid = if (state == ShizukuState.READY) readUid() else -1
+        if (state != ShizukuState.PERMISSION_NEEDED) grantedButNotApplied = false
     }
 
     /** True when the Shizuku manager package resolves. Needs the `<queries>` entry (API 30+). */
@@ -89,6 +103,18 @@ class ShizukuRuntime(private val context: Context) {
     fun requestPermission() {
         if (state != ShizukuState.PERMISSION_NEEDED) return
         runCatching { Shizuku.requestPermission(REQUEST_CODE_PERMISSION) }
+    }
+
+    /**
+     * Relaunches the app in a fresh process, which attaches to Shizuku again and so picks up a
+     * permission granted after the previous attach. The non-daemon user service dies with us.
+     */
+    fun restartApp() {
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        if (runCatching { context.startActivity(intent) }.isSuccess) {
+            Runtime.getRuntime().exit(0)
+        }
     }
 
     /** Launches the manager app, else the store page, else the F-Droid page. */

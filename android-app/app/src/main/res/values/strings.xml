@@ -9,6 +9,8 @@
     <string name="state_permission_needed_title">Permission needed</string>
     <string name="state_permission_needed_body">Shizuku is running. This app still needs permission to use it. Tap Grant permission and accept the dialog inside Shizuku.</string>
     <string name="state_rationale_hint">Shizuku reports that you declined the last request. Open Shizuku and enable PULSE // BATTERY in its permission list.</string>
+    <string name="state_restart_hint">Already allowed in Shizuku but still asked here? Some Shizuku builds apply a new permission only after the app restarts.</string>
+    <string name="state_granted_not_applied">Shizuku granted the permission, but it applies only after a restart of this app.</string>
     <string name="state_ready_title">Shizuku ready</string>
     <string name="state_ready_body">Shizuku is running and this app has permission. Commands run through the Shizuku user service.</string>
 
@@ -21,6 +23,7 @@
     <string name="action_install_shizuku">Get Shizuku</string>
     <string name="action_open_manager">Open Shizuku</string>
     <string name="action_request_permission">Grant permission</string>
+    <string name="action_restart_app">Restart app</string>
     <string name="action_refresh">Re-check</string>
     <string name="action_copy">Copy</string>
     <string name="action_share">Share</string>
@@ -63,8 +66,8 @@
     <string name="diag_row_health">Health</string>
     <string name="diag_row_source">Power source</string>
     <string name="diag_row_tech">Technology</string>
-    <string name="diag_temp_value">%1$.1f °C</string>
-    <string name="diag_voltage_value">%1$.3f V</string>
+    <string name="diag_temp_value">⁦%1$.1f °C⁩</string>
+    <string name="diag_voltage_value">⁦%1$.3f V⁩</string>
     <string name="diag_health_good">Good</string>
     <string name="diag_health_overheat">Overheating</string>
     <string name="diag_health_dead">Dead</string>
@@ -78,5 +81,5 @@
     <string name="diag_source_dock">Dock</string>
     <string name="diag_wakelocks">Active wake locks (%1$d)</string>
     <string name="diag_wakelocks_none">No wake lock is held right now.</string>
-    <string name="diag_wakelock_meta">%1$s · held %2$s</string>
+    <string name="diag_wakelock_meta">⁦%1$s⁩ · held ⁦%2$s⁩</string>
 </resources>

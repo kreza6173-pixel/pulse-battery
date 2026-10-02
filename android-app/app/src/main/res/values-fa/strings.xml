@@ -9,6 +9,8 @@
     <string name="state_permission_needed_title">مجوز لازم است</string>
     <string name="state_permission_needed_body">شیزوکو در حال اجراست. این برنامه هنوز برای استفاده از آن مجوز ندارد. دکمه اعطای مجوز را بزنید و پنجره تأیید را در شیزوکو بپذیرید.</string>
     <string name="state_rationale_hint">شیزوکو می‌گوید درخواست قبلی را رد کرده‌اید. شیزوکو را باز کنید و در فهرست مجوزها، PULSE // BATTERY را فعال کنید.</string>
+    <string name="state_restart_hint">در شیزوکو اجازه داده‌اید ولی اینجا هنوز مجوز می‌خواهد؟ بعضی نسخه‌های شیزوکو مجوز جدید را فقط بعد از بازگشایی برنامه اعمال می‌کنند.</string>
+    <string name="state_granted_not_applied">شیزوکو مجوز را داد، اما فقط بعد از بازگشایی این برنامه اعمال می‌شود.</string>
     <string name="state_ready_title">شیزوکو آماده است</string>
     <string name="state_ready_body">شیزوکو در حال اجراست و این برنامه مجوز دارد. دستورها از طریق سرویس کاربر شیزوکو اجرا می‌شوند.</string>
 
@@ -21,6 +23,7 @@
     <string name="action_install_shizuku">دریافت شیزوکو</string>
     <string name="action_open_manager">باز کردن شیزوکو</string>
     <string name="action_request_permission">اعطای مجوز</string>
+    <string name="action_restart_app">بازگشایی برنامه</string>
     <string name="action_refresh">بررسی دوباره</string>
     <string name="action_copy">کپی</string>
     <string name="action_share">اشتراک</string>
@@ -63,8 +66,8 @@
     <string name="diag_row_health">سلامت</string>
     <string name="diag_row_source">منبع برق</string>
     <string name="diag_row_tech">فناوری</string>
-    <string name="diag_temp_value">%1$.1f °C</string>
-    <string name="diag_voltage_value">%1$.3f V</string>
+    <string name="diag_temp_value">⁦%1$.1f °C⁩</string>
+    <string name="diag_voltage_value">⁦%1$.3f V⁩</string>
     <string name="diag_health_good">خوب</string>
     <string name="diag_health_overheat">داغ شدن بیش از حد</string>
     <string name="diag_health_dead">از کار افتاده</string>
@@ -78,5 +81,5 @@
     <string name="diag_source_dock">داک</string>
     <string name="diag_wakelocks">قفل‌های بیداری فعال (%1$d)</string>
     <string name="diag_wakelocks_none">الان هیچ قفل بیداری فعال نیست.</string>
-    <string name="diag_wakelock_meta">%1$s · مدت %2$s</string>
+    <string name="diag_wakelock_meta">⁦%1$s⁩ · مدت ⁦%2$s⁩</string>
 </resources>

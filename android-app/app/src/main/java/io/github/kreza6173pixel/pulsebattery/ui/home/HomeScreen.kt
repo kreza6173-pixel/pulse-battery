@@ -116,17 +116,54 @@ private fun StateAction(runtime: ShizukuRuntime, state: ShizukuState) {
             )
         }
 
-        ShizukuState.PERMISSION_NEEDED -> Button(
-            onClick = { runtime.requestPermission() },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = stringResource(R.string.action_request_permission),
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp),
-            )
-        }
+        ShizukuState.PERMISSION_NEEDED -> PermissionActions(runtime)
 
         ShizukuState.READY -> Unit
+    }
+}
+
+/**
+ * Grant button, plus a restart fallback: on some Shizuku builds a new grant is only applied
+ * to a freshly attached process. When Shizuku has already said GRANTED, the restart becomes
+ * the primary action.
+ */
+@Composable
+private fun PermissionActions(runtime: ShizukuRuntime) {
+    val stale = runtime.grantedButNotApplied
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (stale) {
+            Text(
+                text = stringResource(R.string.state_granted_not_applied),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Button(
+                onClick = { runtime.restartApp() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.action_restart_app))
+            }
+        } else {
+            Button(
+                onClick = { runtime.requestPermission() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(R.string.action_request_permission),
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+                )
+            }
+            Text(
+                text = stringResource(R.string.state_restart_hint),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedButton(
+                onClick = { runtime.restartApp() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.action_restart_app))
+            }
+        }
     }
 }
 

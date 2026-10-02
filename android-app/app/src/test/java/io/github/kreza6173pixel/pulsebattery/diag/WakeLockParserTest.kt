@@ -29,6 +29,7 @@ class WakeLockParserTest {
         assertEquals(1000, screen.uid)
         assertEquals(1960, screen.pid)
         assertEquals("android", screen.pkg)
+        assertNull(screen.tagPackage)
         assertEquals(listOf("com.android.systemui"), screen.attributedPackages)
 
         val partial = locks[1]
@@ -36,6 +37,25 @@ class WakeLockParserTest {
         assertEquals("NotificationManagerService:post:com.leekleak.trafficlight", partial.tag)
         assertEquals("", partial.flags)
         assertEquals(listOf("com.leekleak.trafficlight"), partial.attributedPackages)
+    }
+
+    /** Real tag seen on the phone (2026-10-02), shown as "android" before this fix. */
+    @Test
+    fun jobSchedulerLockIsAttributedToTheAppInTheTag() {
+        val e = WakeLockParser.parseLine(
+            "  PARTIAL_WAKE_LOCK  '*job*r/com.android.vending/com.google.android.finsky.scheduler.process.mainimpl.PhoneskyJobServiceMain' ACQ=-22s445ms (uid=1000 pid=1960 pkg=android ws=WorkSource{10123})"
+        )!!
+        assertEquals("com.android.vending", e.tagPackage)
+        assertEquals(listOf("com.android.vending"), e.attributedPackages)
+        assertEquals("22s445ms", e.heldFor)
+    }
+
+    @Test
+    fun syncTagWithoutSuffixLetter() {
+        val e = WakeLockParser.parseLine(
+            "  PARTIAL_WAKE_LOCK  '*sync*/com.example.mail/account' ACQ=-1s (uid=1000 pid=2 pkg=android)"
+        )!!
+        assertEquals("com.example.mail", e.tagPackage)
     }
 
     @Test
