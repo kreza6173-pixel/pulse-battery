@@ -48,6 +48,12 @@ class ShizukuRuntime(private val context: Context) {
     var grantedButNotApplied: Boolean by mutableStateOf(false)
         private set
 
+    /**
+     * The permission dialog is shown automatically at most once per process, so a user who
+     * dismisses it is never nagged in a loop. The Grant button always works.
+     */
+    private var autoAsked = false
+
     val uidKind: ShizukuUidKind get() = classifyUid(uid)
 
     /** Set when `Shizuku.shouldShowRequestPermissionRationale()` is true. */
@@ -89,6 +95,13 @@ class ShizukuRuntime(private val context: Context) {
         state = resolveShizukuState(signals)
         uid = if (state == ShizukuState.READY) readUid() else -1
         if (state != ShizukuState.PERMISSION_NEEDED) grantedButNotApplied = false
+
+        // Fresh install: open the Shizuku dialog right away instead of waiting for a tap.
+        // Skipped when the user chose "deny" before (rationale), so the hint is shown instead.
+        if (state == ShizukuState.PERMISSION_NEEDED && !autoAsked && !rationale) {
+            autoAsked = true
+            requestPermission()
+        }
     }
 
     /** True when the Shizuku manager package resolves. Needs the `<queries>` entry (API 30+). */
