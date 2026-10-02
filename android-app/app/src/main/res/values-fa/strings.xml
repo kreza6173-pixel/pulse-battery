@@ -14,7 +14,7 @@
     <string name="state_ready_title">شیزوکو آماده است</string>
     <string name="state_ready_body">شیزوکو در حال اجراست و این برنامه مجوز دارد. دستورها از طریق سرویس کاربر شیزوکو اجرا می‌شوند.</string>
 
-    <string name="state_uid_value">شناسه کاربر شیزوکو: %1$d (%2$s)</string>
+    <string name="state_uid_value">شناسه کاربر شیزوکو: ⁦%1$d⁩ (%2$s)</string>
     <string name="uid_root">ریشه</string>
     <string name="uid_shell">پوسته</string>
     <string name="uid_other">سایر</string>
@@ -40,7 +40,7 @@
     <string name="console_connecting">در حال اتصال…</string>
     <string name="console_connected">متصل</string>
     <string name="console_state_format">سرویس کاربر: %1$s</string>
-    <string name="console_meta_format">کد خروج %1$d · زمان %2$d میلی‌ثانیه</string>
+    <string name="console_meta_format">کد خروج: ⁦%1$d⁩ · زمان: ⁦%2$d⁩ میلی‌ثانیه</string>
     <string name="console_meta_no_exit">اجرا نشد</string>
     <string name="console_truncated">خروجی کوتاه شد</string>
     <string name="console_bind_log">گزارش اتصال (تازه‌ترین در پایان)</string>
@@ -79,11 +79,11 @@
     <string name="diag_source_usb">USB</string>
     <string name="diag_source_wireless">بی‌سیم</string>
     <string name="diag_source_dock">داک</string>
-    <string name="diag_wakelocks">قفل‌های بیداری فعال (%1$d)</string>
+    <string name="diag_wakelocks">قفل‌های بیداری فعال (⁦%1$d⁩)</string>
     <string name="diag_wakelocks_none">الان هیچ قفل بیداری فعال نیست.</string>
-    <string name="diag_wakelock_meta">⁦%1$s⁩ · مدت ⁦%2$s⁩</string>
-    <string name="diag_alarms">پرکارترین آلارم‌ها (%1$d)</string>
+    <string name="diag_wakelock_meta">⁦%1$s⁩ · مدت: ⁦%2$s⁩</string>
+    <string name="diag_alarms">پرکارترین آلارم‌ها (⁦%1$d⁩)</string>
     <string name="diag_alarms_none">هنوز آماری از آلارم‌ها نیست.</string>
-    <string name="diag_alarm_meta">%1$d بیدارباش · %2$d آلارم · اجرا ⁦%3$s⁩</string>
+    <string name="diag_alarm_meta">بیدارباش: ⁦%1$d⁩ · آلارم: ⁦%2$d⁩ · اجرا: ⁦%3$s⁩</string>
     <string name="diag_alarm_wakes_device">گوشی را از خواب بیدار می‌کند</string>
 </resources>
