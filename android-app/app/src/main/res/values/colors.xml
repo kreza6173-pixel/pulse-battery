@@ -2,5 +2,5 @@
 <resources>
     <color name="md_theme_primary">#ff5f6d</color>
     <color name="md_theme_onPrimary">#ffffffff</color>
-    <color name="launcher_background">#ff1e2a</color>
+    <color name="launcher_background">#ff12131a</color>
 </resources>

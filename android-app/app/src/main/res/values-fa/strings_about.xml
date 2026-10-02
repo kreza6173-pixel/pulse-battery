@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_about">درباره و مجوزها</string>
+    <string name="about_title">PULSE // ABOUT</string>
+    <string name="about_version">نسخه ⁦%1$s⁩</string>
+    <string name="about_tagline">پزشک باتری و قفل‌های بیداری، همراه با گاوصندوق پشتیبان. از طریق شیزوکو کار می‌کند و به روت نیاز ندارد.</string>
+    <string name="about_no_tracking">بدون تبلیغ، بدون ردیابی، بدون دسترسی به اینترنت.</string>
+    <string name="about_license_app">رایگان و متن‌باز با مجوز MIT.</string>
+    <string name="about_open_repo">کد منبع در گیت‌هاب</string>
+    <string name="about_third_party">کتابخانه‌های متن‌باز</string>
+</resources>

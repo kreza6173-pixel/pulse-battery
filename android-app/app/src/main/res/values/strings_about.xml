@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_about">About &amp; licenses</string>
+    <string name="about_title">PULSE // ABOUT</string>
+    <string name="about_version">Version ⁦%1$s⁩</string>
+    <string name="about_tagline">Battery and wake lock doctor with a backup vault. Works through Shizuku, no root needed.</string>
+    <string name="about_no_tracking">No ads, no analytics, no network access.</string>
+    <string name="about_license_app">Free and open source under the MIT License.</string>
+    <string name="about_open_repo">Source code on GitHub</string>
+    <string name="about_third_party">Open-source libraries</string>
+</resources>

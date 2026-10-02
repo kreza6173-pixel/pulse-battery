@@ -13,6 +13,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -35,6 +36,7 @@ fun HomeScreen(
     onOpenDiagnostics: () -> Unit = {},
     onOpenStandby: () -> Unit = {},
     onOpenVault: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
 ) {
     val state = runtime.state
 
@@ -64,6 +66,9 @@ fun HomeScreen(
             }
         }
         RefreshButton(runtime)
+        TextButton(onClick = onOpenAbout, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.home_open_about))
+        }
     }
 }
 
