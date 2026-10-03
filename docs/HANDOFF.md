@@ -2,13 +2,13 @@
 
 > For when work continues with another model or agent. Read the whole file first.
 > If anything here disagrees with the repo or a CI log, **the repo and the log win**.
-> Updated: 2026-10-02.
+> Updated: 2026-10-03.
 
 ---
 
 ## 1. Status (with evidence)
 
-| Step | Status | Evidence on the phone |
+| Step | Status | Evidence |
 |---|---|---|
 | M0 skeleton + CI | done | green run `36795807603` |
 | M1 Shizuku state machine | done | PERMISSION_NEEDED to READY, uid 2000 |
@@ -19,11 +19,15 @@
 | M5c data backup | paused | debuggable apps via `run-as` only (manual test worked). Root **deliberately locked** |
 | Drain report | done | overnight period verified on the phone |
 | Release signing | done | CI builds signed `app-release`, cert `CN=PULSE, O=kreza6173-pixel` |
-| v1.0 launch | in progress | see section 5 |
+| v1.0.0 release | **done** | merged into `main` (#1), tag `v1.0.0`, GitHub Release 2026-10-02 |
+| Signed release APK on the phone | **to verify** | only debug builds were phone-tested; release has `debuggable=false` on the UserService |
 
 Reference device: **Xiaomi, Android 16 (SDK 36), Shizuku as uid 2000, device locale fa (RTL)**.
 The app is English-only and pins en-US in `MainActivity.attachBaseContext`.
-Branch: `native-app-v0`. Package: `io.github.kreza6173pixel.pulsebattery`.
+Package: `io.github.kreza6173pixel.pulsebattery`.
+
+**Branch: `main` only.** `native-app-v0` is frozen and behind `main`; never push to it.
+It can be deleted at any time (PR #1 keeps its history and offers Restore branch).
 
 ---
 
@@ -41,6 +45,7 @@ Branch: `native-app-v0`. Package: `io.github.kreza6173pixel.pulsebattery`.
 10. Package names are regex-checked and quoted with `ShellQuoting.quote` before the shell.
 11. Pinned versions: AGP 8.13.1, Kotlin 2.2.21, Gradle 8.13, BOM 2025.12.00, SDK 36, Shizuku 13.1.5. **Never SDK 37 or AGP 9.**
 12. Release signing only from CI secrets (`docs/RELEASE.md`). Workflow files need the repo owner to edit them.
+13. Every release bumps `versionCode` and is signed with the **same** keystore. Losing it ends updates for existing installs.
 
 ---
 
@@ -78,30 +83,44 @@ Branch: `native-app-v0`. Package: `io.github.kreza6173pixel.pulsebattery`.
 
 ---
 
-## 5. Remaining for v1.0 (in order)
+## 5. Distribution status
 
-1. Owner: enable Discussions, set repo topics and social preview, take screenshots into `fastlane/metadata/android/en-US/images/phoneScreenshots/`.
-2. Decide on the legacy module files at the repo root (`module.prop`, `lib.sh`, `action.sh`, `webui/`).
-3. Merge `native-app-v0` into `main`, tag `v1.0.0`, GitHub Release with the signed APK.
-4. Submit to IzzyOnDroid, then F-Droid; awesome-shizuku list; AlternativeTo; launch posts.
+| Channel | Status |
+|---|---|
+| GitHub Releases (+ Obtainium) | **done**, `v1.0.0` |
+| awesome-shizuku | **done**, PR timschneeb/awesome-shizuku#162 merged 2026-10-02 (Power management) |
+| IzzyOnDroid | **not submitted, by decision.** Its policy rejects code written fully or partly by generative AI. Do not submit while hiding that. Revisit only if the policy changes |
+| F-Droid RFP | pending, needs the owner's GitLab account; request text in `RELEASE-AND-ROADMAP.md` |
+| AlternativeTo, launch posts | optional, owner; texts in `RELEASE-AND-ROADMAP.md` (always state AI assistance up front) |
+
+Owner housekeeping still open: keystore + passwords backed up offline in two places, phone test of the signed release APK, social preview image.
 
 ---
 
-## 6. Project roadmap (agreed)
+## 6. Project roadmap (updated 2026-10-03)
 
-1. **PULSE // BATTERY v1.0** (this repo).
-2. **Template repo** from M0 to M2: Shizuku core, console, `ui/common`, CI, signing. Copy, not a shared library.
-3. **VOID // APPS**: merges Cyber App Manager, Autostart, Privacy Audit, Purge and Install (all app list + `pm`/`appops`).
-4. **VOID // WALL**: firewall, separate (risk of cutting the network).
-5. void-pulse on hold (a global EQ needs a native service).
-6. Root features: visible but locked until a real rooted user tests them with a "show command only" mode.
+The owner's module repos are consolidated into **two native apps total**:
+
+1. **PULSE // BATTERY** (this repo): shipped, maintenance only. M5c and root stay paused/locked.
+2. **VOID // APPS**: one app, built in the Cyber-app-manager repo (to be renamed `void-apps`), reusing this repo's M0-M2 core by copy. It absorbs:
+   - Cyber App Manager (registry, freeze, remove for user, snapshots, debloat)
+   - void-autostart (boot receivers, background AppOps)
+   - privacy-audit (runtime permissions, special-access AppOps)
+   - void-pulse, notification part only (listener access, DND access, per-app notification mute)
+   - pulse-install (session-based APK/APKS/XAPK/APKM install)
+   - void-purge, only the parts that verifiably work as shell uid
+   - VOID-WALL, non-root part only (Chain3 per-app network block, netpolicy background data)
+
+Dropped on purpose: AI advisors and VirusTotal (no INTERNET permission is a core promise), the non-functional EQ engine, the DNS filter that never filtered, root iptables/tc until a real rooted tester exists.
+No template repo: with only one new app it is not worth maintaining.
+`android-app-hub` is unrelated and out of scope.
 
 ---
 
 ## 7. Ready prompt for an agent
 
 ```text
-Repo kreza6173-pixel/pulse-battery, branch native-app-v0. Read docs/HANDOFF.md first,
+Repo kreza6173-pixel/pulse-battery, branch main. Read docs/HANDOFF.md first,
 fully. It is the source of truth together with the code; CI logs beat both.
 
 TASK: <one step>
@@ -115,7 +134,7 @@ Hard rules:
 - Strings in values/ only, English. Shell text rendered with LtrMonoText.
 - Every write command is followed by a read-back; report "applied" only if it matches.
 - Re-read the whole diff before pushing.
-- Push: git push origin HEAD:native-app-v0
+- Push: git push origin HEAD:main
 - Report: run id, green/red, artifact app-debug exists. If red, quote ONLY e: lines.
 - Nothing "works" until the owner confirms on the phone. End with exactly what to tap
   and which output to copy back.

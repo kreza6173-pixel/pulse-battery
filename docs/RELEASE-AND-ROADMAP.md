@@ -1,13 +1,13 @@
 # PULSE // BATTERY 1.0: release map and Android playbook
 
-Updated: 2026-10-02
+Updated: 2026-10-03
 
 This is the practical record for continuing the project without relying on chat history.
 
 ## 1. Current release state
 
 - Native Kotlin + Jetpack Compose app, package `io.github.kreza6173pixel.pulsebattery`.
-- `native-app-v0` merged into `main`; release `v1.0.0` published on GitHub with the signed APK.
+- `native-app-v0` merged into `main`; release `v1.0.0` published on GitHub with the signed APK. All work continues on `main`.
 - Version `1.0.0` (code 1), Android 8.0+ (SDK 26), target/compile SDK 36.
 - Release certificate `CN=PULSE, O=kreza6173-pixel`, SHA-256 `3f8c1e2df2deaf9d561a8fdce3c667ed0ceda972622f20d006a1b6098c2a2512`.
 - English-only. No `INTERNET` permission. Dependency-info block disabled for F-Droid style checks.
@@ -15,16 +15,20 @@ This is the practical record for continuing the project without relying on chat 
 
 ## 2. Distribution channels
 
-### GitHub Releases + Obtainium (primary)
+### GitHub Releases + Obtainium (primary) - done
 
 The release page is the canonical download. Obtainium users can add the repo URL directly and get updates from GitHub Releases. Always bump `versionCode` and attach a signed APK for every release.
 
-### F-Droid
+### awesome-shizuku - done
+
+Listed under Power management: https://github.com/timschneeb/awesome-shizuku/pull/162 (merged 2026-10-02).
+
+### F-Droid - pending (owner)
 
 - Inclusion policy: https://f-droid.org/docs/Inclusion_Policy/
 - Requests for packaging: https://gitlab.com/fdroid/rfp/-/issues (needs a GitLab account)
 
-F-Droid builds the app from source itself. Expect weeks, and questions about build, dependencies and permissions. Answer questions about tooling honestly if asked.
+F-Droid builds the app from source itself. Expect weeks, and questions about build, dependencies and permissions. Answer questions about tooling honestly if asked, including AI assistance.
 
 Request text:
 
@@ -42,28 +46,17 @@ Build: Gradle, module android-app/app, no prebuilt binaries
 Fastlane metadata: fastlane/metadata/android/en-US
 ```
 
-### IzzyOnDroid
+### IzzyOnDroid - not submitted, by decision
 
 - Policy: https://izzyondroid.org/docs/general/AppInclusionPolicy/
-- Requests: https://codeberg.org/IzzyOnDroid/repodata/issues
 
-IzzyOnDroid rejects apps whose code was written fully or partly by generative AI ("vibe-coded" apps). This app's code was written with AI assistance, so an honest request would most likely be rejected. Do not submit while hiding that. Revisit only if the policy changes.
+IzzyOnDroid rejects apps whose code was written fully or partly by generative AI. This app's code was written with AI assistance, so an honest request would be rejected. Do not submit while hiding that. Revisit only if the policy changes.
 
-### awesome-shizuku
-
-https://github.com/timschneeb/awesome-shizuku (pull request to README.md)
-
-```markdown
-- [PULSE // BATTERY](https://github.com/kreza6173-pixel/pulse-battery) - Overnight battery drain report with one-tap standby restrict, wake lock and alarm diagnostics, Doze controls and APK backup. `MIT`
-```
-
-Section: Power management.
-
-### AlternativeTo
+### AlternativeTo - optional (owner)
 
 https://alternativeto.net/ : add app, Android, open source (MIT), link to GitHub Releases. Alternatives: Naptime, BetterBatteryStats, GSam Battery Monitor.
 
-### Launch posts
+### Launch posts - optional (owner)
 
 Post after the release page works. Be factual, mention Shizuku and Android 8.0+, and say up front that it was built with AI assistance and tested on a real device. Communities react far worse to discovering it later.
 
@@ -87,17 +80,18 @@ https://github.com/kreza6173-pixel/pulse-battery/releases/tag/v1.0.0
 - **Verify every write:** exit 0 is not success; read the state back and offer revert.
 - **Two authorities:** CI proves compilation and tests; the phone proves behavior.
 - **Design failure first:** denied permission, binder death, timeout, empty output, reboot, counter reset, protected packages.
+- **Never stop the bridge:** any bulk force-stop/disable must exclude Shizuku (`moe.shizuku.privileged.api`) and the app itself.
 - **Honest UI:** a wakeup count is not mAh; label heuristics.
 - **Release hygiene:** neutral certificate before v1.0, publish SHA-256, never lose or rotate the keystore, secrets only in Secrets.
 - **Ship in slices:** one feature per push, one device test per slice.
 
-## 4. Next projects
+## 4. Next projects (updated 2026-10-03)
 
-1. Template repo (Shizuku core, UserService, console, UI helpers, CI, signing).
-2. VOID // APPS (Cyber App Manager, Autostart, Privacy Audit, Purge, Install).
-3. VOID // WALL, separate, with an emergency disable path.
-4. PULSE M5c (debuggable data backup); root only after real-root tests.
-5. void-pulse on hold.
+Two native apps total. See `HANDOFF.md` section 6 for what goes where.
+
+1. **VOID // APPS**: one app replacing Cyber App Manager, void-autostart, privacy-audit, pulse-install, the working parts of void-purge, the notification part of void-pulse and the non-root part of VOID-WALL. Built in the Cyber-app-manager repo (rename to `void-apps`), on a copy of this repo's M0-M2 core.
+2. PULSE M5c (debuggable data backup); root only after real-root tests.
+3. After VOID // APPS ships, the old module repos get a README pointer to it and are archived.
 
 ## 5. When stuck
 
