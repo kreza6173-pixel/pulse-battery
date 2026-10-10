@@ -37,6 +37,7 @@ fun HomeScreen(
     onOpenConsole: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
     onOpenStandby: () -> Unit = {},
+    onOpenCharge: () -> Unit = {},
     onOpenVault: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
 ) {
@@ -56,6 +57,7 @@ fun HomeScreen(
         // Every feature needs the Shizuku UserService, so they are only offered once READY.
         if (state == ShizukuState.READY) {
             FeatureButton(R.string.home_open_report, onOpenReport)
+            FeatureButton(R.string.home_open_charge, onOpenCharge)
             FeatureButton(R.string.home_open_diagnostics, onOpenDiagnostics)
             FeatureButton(R.string.home_open_standby, onOpenStandby)
             FeatureButton(R.string.home_open_vault, onOpenVault)
