@@ -105,7 +105,7 @@ fun ChargeScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
                         )
                     }
                 }
-                items@ for (mode in ChargeMode.entries) {
+                for (mode in ChargeMode.entries) {
                     item(key = mode.name) {
                         ModeCard(
                             mode = mode,
