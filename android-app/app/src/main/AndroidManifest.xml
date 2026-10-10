@@ -5,13 +5,16 @@
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
     <!-- Package visibility (Android 11+ / API 30+): without these entries
-         PackageManager queries for the Shizuku manager always report "not installed". -->
+         PackageManager queries for the Shizuku manager always report "not installed".
+         Sui needs no entry here: it is a Magisk / KernelSU module, not an installed app,
+         and it is detected by attaching to it instead of by querying PackageManager. -->
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
         <package android:name="com.hamondev.shevery" />
     </queries>
 
     <application
+        android:name=".PulseApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"

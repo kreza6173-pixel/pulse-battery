@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.kreza6173pixel.pulsebattery.R
+import io.github.kreza6173pixel.pulsebattery.access.ServiceProvider
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuRuntime
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuState
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuUidKind
@@ -51,6 +52,7 @@ fun HomeScreen(
         StateCard(runtime)
         StateAction(runtime, state)
         UidRow(runtime)
+        AccessRows(runtime)
         // Every feature needs the Shizuku UserService, so they are only offered once READY.
         if (state == ShizukuState.READY) {
             FeatureButton(R.string.home_open_report, onOpenReport)
@@ -202,6 +204,32 @@ private fun UidRow(runtime: ShizukuRuntime) {
     )
 }
 
+/**
+ * Which provider is answering, and whether root-only features may appear. Shown in every
+ * state so a phone report can always say what the app was running on.
+ */
+@Composable
+private fun AccessRows(runtime: ShizukuRuntime) {
+    val mode = runtime.accessMode
+    Text(
+        text = stringResource(
+            R.string.access_provider_label,
+            stringResource(mode.provider.labelRes()),
+        ),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Start,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Text(
+        text = stringResource(
+            if (mode.rootAvailable) R.string.access_root_available else R.string.access_root_unavailable,
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        textAlign = TextAlign.Start,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 @Composable
 private fun RefreshButton(runtime: ShizukuRuntime) {
     OutlinedButton(
@@ -234,4 +262,10 @@ private fun ShizukuUidKind.labelRes(): Int = when (this) {
     ShizukuUidKind.SHELL -> R.string.uid_shell
     ShizukuUidKind.OTHER -> R.string.uid_other
     ShizukuUidKind.UNKNOWN -> R.string.uid_unknown
+}
+
+private fun ServiceProvider.labelRes(): Int = when (this) {
+    ServiceProvider.SUI -> R.string.access_provider_sui
+    ServiceProvider.SHIZUKU -> R.string.access_provider_shizuku
+    ServiceProvider.NONE -> R.string.access_provider_none
 }
