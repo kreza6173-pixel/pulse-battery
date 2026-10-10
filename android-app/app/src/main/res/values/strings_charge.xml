@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_charge">Charge protection</string>
+    <string name="charge_title">PULSE // CHARGE</string>
+    <string name="charge_current">Current mode: %1$s</string>
+    <string name="charge_mode_full">Charge fully</string>
+    <string name="charge_mode_intelligent">Intelligent charging</string>
+    <string name="charge_mode_protected">Battery protection</string>
+    <string name="charge_mode_full_hint">No cap. The battery charges to 100 percent.</string>
+    <string name="charge_mode_intelligent_hint">The ROM decides when to hold the charge, based on your habits.</string>
+    <string name="charge_mode_protected_hint">Hold the charge at the cap this ROM defines. 80 percent on this device.</string>
+    <string name="charge_mode_unknown">unknown</string>
+    <string name="charge_unsupported_title">Not available on this ROM</string>
+    <string name="charge_unsupported_body">This control uses a Xiaomi setting and no Xiaomi ROM marker was found on this device, so it is not offered.</string>
+    <string name="charge_unconfirmed">The setting has no value yet on this build, which reads as intelligent charging. Each mode is still verified by reading the setting back, so a mode this ROM does not support will be reported as not applied.</string>
+    <string name="charge_scheduled_note">The ROM reserves the right to charge fully when scheduled, even while battery protection is on. Seeing 100 percent is then the ROM, not this app.</string>
+    <string name="charge_shell_note">Root is not needed here: shell access is enough, and the system battery settings screen follows every change.</string>
+    <string name="charge_applied">Applied and verified</string>
+    <string name="charge_not_applied">Not applied</string>
+    <string name="charge_working">Working…</string>
+    <string name="charge_revert">Back to %1$s</string>
+    <string name="charge_setting_value">Setting value: %1$s</string>
+    <string name="charge_rom_marker">ROM marker: %1$s</string>
+    <string name="charge_raw">Probe output</string>
+</resources>
