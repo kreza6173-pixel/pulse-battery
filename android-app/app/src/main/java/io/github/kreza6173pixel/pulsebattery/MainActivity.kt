@@ -180,7 +180,11 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                 rootAvailable = rootAvailable,
                 modifier = contentModifier,
             )
-            Screen.VAULT -> VaultScreen(bridge = bridge, modifier = contentModifier)
+            Screen.VAULT -> VaultScreen(
+                bridge = bridge,
+                rootAvailable = rootAvailable,
+                modifier = contentModifier,
+            )
             Screen.ABOUT -> AboutScreen(modifier = contentModifier)
         }
     }

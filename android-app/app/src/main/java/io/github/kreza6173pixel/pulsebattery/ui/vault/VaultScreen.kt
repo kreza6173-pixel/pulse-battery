@@ -33,6 +33,7 @@ import io.github.kreza6173pixel.pulsebattery.exec.ExecBridge
 import io.github.kreza6173pixel.pulsebattery.standby.ActionResult
 import io.github.kreza6173pixel.pulsebattery.ui.common.CopyShareButtons
 import io.github.kreza6173pixel.pulsebattery.ui.common.LtrMonoText
+import io.github.kreza6173pixel.pulsebattery.vault.DataVaultParsers
 import io.github.kreza6173pixel.pulsebattery.vault.VaultEntry
 import io.github.kreza6173pixel.pulsebattery.vault.VaultRepository
 import io.github.kreza6173pixel.pulsebattery.vault.VaultSnapshot
@@ -42,10 +43,20 @@ import kotlinx.coroutines.withContext
 
 private const val CONFIRM_RESTORE = "restore"
 private const val CONFIRM_DELETE = "delete"
+private const val CONFIRM_DATA_RESTORE = "data_restore"
 
-/** M5: export APKs to shared storage, restore them, delete backups. */
+/**
+ * M5: export APKs to shared storage, restore them, delete backups.
+ *
+ * With root the same vault also holds a full archive of the app's private data and of its
+ * shared-storage data and obb directories.
+ */
 @Composable
-fun VaultScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
+fun VaultScreen(
+    bridge: ExecBridge,
+    rootAvailable: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val repo = remember(bridge) { VaultRepository(bridge) }
     val scope = rememberCoroutineScope()
     var snapshot by remember { mutableStateOf<DiagResult<VaultSnapshot>?>(null) }
@@ -91,17 +102,38 @@ fun VaultScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
         }
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)) {
+                Column(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     Text(
                         text = stringResource(R.string.vault_where),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     LtrMonoText(VaultRepository.VAULT_DIR)
-                    Text(
-                        text = stringResource(R.string.vault_data_locked),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (rootAvailable) {
+                        Text(
+                            text = stringResource(R.string.vault_data_root),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.vault_data_stops_app),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = stringResource(R.string.vault_data_caveat),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.vault_data_locked),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -134,8 +166,11 @@ fun VaultScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
             VaultRow(
                 entry = entry,
                 enabled = enabled,
+                rootAvailable = rootAvailable,
                 onRestore = { act { repo.restore(entry.pkg) } },
                 onDelete = { act { repo.delete(entry.pkg) } },
+                onRestoreData = { act { repo.restoreData(entry.pkg, rootAvailable) } },
+                onDeleteData = { act { repo.deleteData(entry.pkg) } },
             )
         }
 
@@ -156,7 +191,13 @@ fun VaultScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
             )
         }
         items(apps, key = { "a:" + it }) { pkg ->
-            AppExportRow(pkg = pkg, enabled = enabled, onExport = { act { repo.export(pkg) } })
+            AppExportRow(
+                pkg = pkg,
+                enabled = enabled,
+                rootAvailable = rootAvailable,
+                onExport = { act { repo.export(pkg) } },
+                onExportData = { act { repo.exportData(pkg, rootAvailable) } },
+            )
         }
     }
 }
@@ -180,11 +221,14 @@ private fun ResultCard(a: ActionResult) {
 private fun VaultRow(
     entry: VaultEntry,
     enabled: Boolean,
+    rootAvailable: Boolean,
     onRestore: () -> Unit,
     onDelete: () -> Unit,
+    onRestoreData: () -> Unit,
+    onDeleteData: () -> Unit,
 ) {
     var confirm by remember { mutableStateOf<String?>(null) }
-    val megabytes = entry.totalBytes / (1024.0 * 1024.0)
+    val megabytes = DataVaultParsers.megabytes(entry.totalBytes)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)) {
             LtrMonoText(text = entry.pkg, style = MaterialTheme.typography.bodyMedium)
@@ -192,6 +236,21 @@ private fun VaultRow(
                 text = stringResource(R.string.vault_entry_meta, entry.apkCount, megabytes),
                 style = MaterialTheme.typography.labelMedium,
             )
+            if (rootAvailable) {
+                Text(
+                    text = if (entry.hasDataArchive) {
+                        stringResource(
+                            R.string.vault_data_meta,
+                            DataVaultParsers.megabytes(entry.dataBytes),
+                            DataVaultParsers.megabytes(entry.externalBytes),
+                        )
+                    } else {
+                        stringResource(R.string.vault_data_none)
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -235,6 +294,42 @@ private fun VaultRow(
                     )
                 }
             }
+            if (rootAvailable && entry.hasDataArchive) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            if (confirm == CONFIRM_DATA_RESTORE) {
+                                confirm = null
+                                onRestoreData()
+                            } else {
+                                confirm = CONFIRM_DATA_RESTORE
+                            }
+                        },
+                        enabled = enabled,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            stringResource(
+                                if (confirm == CONFIRM_DATA_RESTORE) {
+                                    R.string.vault_confirm
+                                } else {
+                                    R.string.vault_data_restore
+                                }
+                            )
+                        )
+                    }
+                    TextButton(onClick = onDeleteData, enabled = enabled) {
+                        Text(
+                            text = stringResource(R.string.vault_data_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
             if (confirm != null) {
                 TextButton(onClick = { confirm = null }) {
                     Text(stringResource(R.string.vault_cancel))
@@ -245,19 +340,38 @@ private fun VaultRow(
 }
 
 @Composable
-private fun AppExportRow(pkg: String, enabled: Boolean, onExport: () -> Unit) {
+private fun AppExportRow(
+    pkg: String,
+    enabled: Boolean,
+    rootAvailable: Boolean,
+    onExport: () -> Unit,
+    onExportData: () -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                LtrMonoText(text = pkg, style = MaterialTheme.typography.bodyMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    LtrMonoText(text = pkg, style = MaterialTheme.typography.bodyMedium)
+                }
+                TextButton(onClick = onExport, enabled = enabled) {
+                    Text(stringResource(R.string.vault_export))
+                }
             }
-            TextButton(onClick = onExport, enabled = enabled) {
-                Text(stringResource(R.string.vault_export))
+            if (rootAvailable) {
+                TextButton(
+                    onClick = onExportData,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.vault_data_backup))
+                }
             }
         }
     }
