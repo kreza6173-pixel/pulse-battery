@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appops_title">Wakelocks and background</string>
+    <string name="appops_hint">These app ops are settable with the shell uid, so root is not required here. Setting WAKE_LOCK to ignore makes every wakelock the app takes a silent no-op, which can break alarms, downloads, music and messaging for that app. Every change is written, then read back, and only reported as applied when the system confirms it.</string>
+    <string name="appops_search">Search apps</string>
+    <string name="appops_apps">Apps: %1$d</string>
+    <string name="appops_pick">Pick an app below to see and change its ops.</string>
+    <string name="appops_selected">Selected: %1$s</string>
+    <string name="appops_op_wake_lock">Wakelocks</string>
+    <string name="appops_op_run_in_background">Background services</string>
+    <string name="appops_op_run_any_in_background">Any background work</string>
+    <string name="appops_mode_label">Mode: %1$s</string>
+    <string name="appops_mode_allow">allow</string>
+    <string name="appops_mode_ignore">ignore</string>
+    <string name="appops_mode_deny">deny</string>
+    <string name="appops_mode_default">default</string>
+    <string name="appops_mode_foreground">foreground</string>
+    <string name="appops_reset">Reset all three to default</string>
+    <string name="appops_close">Close</string>
+    <string name="appops_applied">Applied, confirmed by read-back</string>
+    <string name="appops_not_applied">Not applied</string>
+    <string name="appops_working">Working…</string>
+    <string name="home_open_appops">Wakelocks and background</string>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_data_root">Running as root, so full app data can be archived and restored, not just the APK.</string>
+    <string name="vault_data_caveat">A data restore cannot bring back hardware-backed key material: it stays with the old install. Apps that tie secrets to the device keystore, such as banking apps and messengers, may still refuse to start after a restore. Restoring data from a newer app version into an older one can also break the app.</string>
+    <string name="vault_data_backup">Back up data</string>
+    <string name="vault_data_restore">Restore data</string>
+    <string name="vault_data_delete">Delete data archive</string>
+    <string name="vault_data_meta">Data ⁦%1$.1f MB⁩ · external ⁦%2$.1f MB⁩</string>
+    <string name="vault_data_none">No data archive saved yet.</string>
+    <string name="vault_data_stops_app">The app is force-stopped before and after, so its databases are not caught mid-write.</string>
+</resources>

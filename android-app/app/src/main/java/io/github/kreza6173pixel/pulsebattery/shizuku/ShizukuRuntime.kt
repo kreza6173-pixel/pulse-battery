@@ -8,6 +8,10 @@ import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.github.kreza6173pixel.pulsebattery.access.AccessMode
+import io.github.kreza6173pixel.pulsebattery.access.AccessSignals
+import io.github.kreza6173pixel.pulsebattery.access.SuiSupport
+import io.github.kreza6173pixel.pulsebattery.access.resolveAccessMode
 import rikka.shizuku.Shizuku
 
 /** Package id of the Shizuku manager app. */
@@ -22,6 +26,9 @@ enum class ManagerLaunchResult { STARTED, NO_APP }
 /**
  * Thin Android wrapper around the Shizuku client library. Everything here is a side
  * effect; all decision-making lives in [resolveShizukuState] so it stays testable.
+ *
+ * The same wrapper serves Sui, which implements the identical binder API, so no second code
+ * path exists for it. Only [isManagerInstalled] has to know the difference.
  */
 class ShizukuRuntime(private val context: Context) {
 
@@ -55,6 +62,20 @@ class ShizukuRuntime(private val context: Context) {
     private var autoAsked = false
 
     val uidKind: ShizukuUidKind get() = classifyUid(uid)
+
+    /**
+     * Which provider is answering and whether root-only features may be offered. Derived from
+     * the current signals on every read, so it can never go stale behind [state].
+     */
+    val accessMode: AccessMode
+        get() = resolveAccessMode(
+            AccessSignals(
+                suiActive = SuiSupport.active,
+                shizukuManagerInstalled = isShizukuManagerInstalled(),
+                serviceReady = state == ShizukuState.READY,
+                uid = uid,
+            )
+        )
 
     /** Set when `Shizuku.shouldShowRequestPermissionRationale()` is true. */
     val shouldShowRationale: Boolean get() = signals.rationaleShouldShow
@@ -104,8 +125,18 @@ class ShizukuRuntime(private val context: Context) {
         }
     }
 
-    /** True when the Shizuku manager package resolves. Needs the `<queries>` entry (API 30+). */
-    fun isManagerInstalled(): Boolean = try {
+    /**
+     * True when a provider is present.
+     *
+     * Sui has to be accepted here as well. It is a module, not an installed app, so a device
+     * running Sui alone resolves no manager package: before this check the app stayed at
+     * NOT_INSTALLED forever and never bound the user service, even though the API was fully
+     * available.
+     */
+    fun isManagerInstalled(): Boolean = SuiSupport.active || isShizukuManagerInstalled()
+
+    /** Strictly the manager app. Needs the `<queries>` entry (API 30+). */
+    private fun isShizukuManagerInstalled(): Boolean = try {
         context.packageManager.getPackageInfo(MANAGER_PACKAGE, 0)
         true
     } catch (_: PackageManager.NameNotFoundException) {

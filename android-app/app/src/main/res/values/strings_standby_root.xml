@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="standby_force_bucket">Force bucket (root)</string>
+    <string name="standby_force_hint">Running as root. For apps the system keeps exempt, PULSE can drop the removable Doze whitelist entry and write the bucket anyway. Every write is read back: it is only reported as applied when the system confirms the new bucket.</string>
+    <string name="standby_locked_no_root">Locked by the system. With root access PULSE could attempt an override.</string>
+    <string name="standby_source_user">Held by: the user Doze whitelist. Removable.</string>
+    <string name="standby_source_system">Held by: the ROM whitelist in /etc/sysconfig. A shell cannot remove that entry, so the system may re-exempt this app.</string>
+    <string name="standby_source_framework">Held by: the framework itself, with no whitelist entry. The write may be reverted.</string>
+    <string name="standby_source_none">Not held by anything.</string>
+</resources>

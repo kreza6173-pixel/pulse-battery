@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="access_provider_label">Access provider: %1$s</string>
+    <string name="access_provider_sui">Sui module</string>
+    <string name="access_provider_shizuku">Shizuku app</string>
+    <string name="access_provider_none">none</string>
+    <string name="access_root_available">Running as root. Root-only features are available.</string>
+    <string name="access_root_unavailable">Running as shell. Root-only features stay hidden.</string>
+</resources>

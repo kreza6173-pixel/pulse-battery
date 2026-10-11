@@ -5,6 +5,17 @@ data class VaultFile(val name: String, val sizeBytes: Long)
 data class VaultEntry(val pkg: String, val files: List<VaultFile>) {
     val totalBytes: Long get() = files.sumOf { it.sizeBytes }
     val apkCount: Int get() = files.count { it.name.endsWith(".apk") }
+
+    /** Size of the private-data archive, or 0 when there is none. */
+    val dataBytes: Long
+        get() = files.firstOrNull { it.name == DataVault.DATA_ARCHIVE }?.sizeBytes ?: 0L
+
+    /** Size of the shared-storage archive, or 0 when there is none. */
+    val externalBytes: Long
+        get() = files.firstOrNull { it.name == DataVault.EXTERNAL_ARCHIVE }?.sizeBytes ?: 0L
+
+    /** A zero-byte archive is a failed backup, not a backup: it does not count. */
+    val hasDataArchive: Boolean get() = dataBytes > 0L
 }
 
 /** Pure parsers for the vault. Tested against real Xiaomi / Android 16 output. */

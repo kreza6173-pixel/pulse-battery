@@ -4,14 +4,27 @@
          explicit and does not depend on manifest-merger behaviour. -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
+    <!-- The charge limit has to keep watching the battery level while it is on, which is the
+         one background component in this app. It is opt-in, shows a permanent notification,
+         and stops itself as soon as it has nothing to do. Still no INTERNET permission. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Only used to reopen the charge gate if a reboot happened while charging was held. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Package visibility (Android 11+ / API 30+): without these entries
-         PackageManager queries for the Shizuku manager always report "not installed". -->
+         PackageManager queries for the Shizuku manager always report "not installed".
+         Sui needs no entry here: it is a Magisk / KernelSU module, not an installed app,
+         and it is detected by attaching to it instead of by querying PackageManager. -->
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
         <package android:name="com.hamondev.shevery" />
     </queries>
 
     <application
+        android:name=".PulseApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
@@ -32,6 +45,28 @@
              Android Service: the Shizuku server spawns its own process and instantiates the
              class by reflection as an IBinder. Declaring it here was useless and, being
              exported, let any app bind it. -->
+
+        <!-- The charge limit watcher. Not exported: only this app may start it. There is no
+             foreground service type for "hold the charger off at a chosen level", so it is
+             declared as a special use with that subtype spelled out. -->
+        <service
+            android:name=".charge.ChargeLimitService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="battery_charge_limit" />
+        </service>
+
+        <!-- Reopens the charge gate after a reboot, and only when the limit is in use. -->
+        <receiver
+            android:name=".charge.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".MainActivity"
