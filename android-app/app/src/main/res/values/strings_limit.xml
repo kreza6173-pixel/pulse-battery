@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limit_channel_name">Charge limit</string>
+    <string name="limit_channel_description">Shown while the charge limit is watching the battery level.</string>
+    <string name="limit_notif_title">Charge limit active</string>
+    <string name="limit_notif_starting">Starting…</string>
+    <string name="limit_notif_connecting">Waiting for the privileged service…</string>
+    <string name="limit_notif_unreadable">The battery nodes could not be read. Nothing was changed.</string>
+    <string name="limit_notif_level">⁦%1$d %%⁩</string>
+    <string name="limit_notif_level_unknown">level unknown</string>
+    <string name="limit_notif_gate_open">charging</string>
+    <string name="limit_notif_gate_paused">held</string>
+    <string name="limit_notif_gate_unknown">gate unknown</string>
+    <string name="limit_notif_plugged">plugged in</string>
+    <string name="limit_notif_unplugged">on battery</string>
+    <string name="limit_notif_thresholds">stop ⁦%1$d⁩, resume ⁦%2$d⁩</string>
+</resources>
