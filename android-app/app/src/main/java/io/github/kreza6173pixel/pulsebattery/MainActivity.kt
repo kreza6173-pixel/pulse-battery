@@ -156,7 +156,11 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
             Screen.REPORT -> DrainReportScreen(bridge = bridge, modifier = contentModifier)
             Screen.CONSOLE -> ConsoleScreen(bridge = bridge, modifier = contentModifier)
             Screen.DIAGNOSTICS -> DiagnosticsScreen(bridge = bridge, modifier = contentModifier)
-            Screen.STANDBY -> StandbyScreen(bridge = bridge, modifier = contentModifier)
+            Screen.STANDBY -> StandbyScreen(
+                bridge = bridge,
+                rootAvailable = rootAvailable,
+                modifier = contentModifier,
+            )
             Screen.CHARGE -> ChargeScreen(
                 bridge = bridge,
                 rootAvailable = rootAvailable,

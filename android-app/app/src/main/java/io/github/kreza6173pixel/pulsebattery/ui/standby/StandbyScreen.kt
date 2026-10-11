@@ -36,8 +36,10 @@ import io.github.kreza6173pixel.pulsebattery.exec.ConnectionState
 import io.github.kreza6173pixel.pulsebattery.exec.ExecBridge
 import io.github.kreza6173pixel.pulsebattery.standby.ActionResult
 import io.github.kreza6173pixel.pulsebattery.standby.AppStandbyRow
+import io.github.kreza6173pixel.pulsebattery.standby.ExemptSource
 import io.github.kreza6173pixel.pulsebattery.standby.StandbyBucket
 import io.github.kreza6173pixel.pulsebattery.standby.StandbyRepository
+import io.github.kreza6173pixel.pulsebattery.standby.StandbyRootPolicy
 import io.github.kreza6173pixel.pulsebattery.standby.StandbySnapshot
 import io.github.kreza6173pixel.pulsebattery.ui.common.CopyShareButtons
 import io.github.kreza6173pixel.pulsebattery.ui.common.LtrMonoText
@@ -47,7 +49,11 @@ import kotlinx.coroutines.withContext
 
 /** M4: standby buckets, Doze whitelist and forced idle. Every write is read back. */
 @Composable
-fun StandbyScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
+fun StandbyScreen(
+    bridge: ExecBridge,
+    rootAvailable: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val repo = remember(bridge) { StandbyRepository(bridge) }
     val scope = rememberCoroutineScope()
     var snapshot by remember { mutableStateOf<DiagResult<StandbySnapshot>?>(null) }
@@ -98,6 +104,15 @@ fun StandbyScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
                 onForce = { act { repo.forceIdle() } },
                 onUnforce = { act { repo.unforce() } },
             )
+        }
+        if (rootAvailable) {
+            item {
+                Text(
+                    text = stringResource(R.string.standby_force_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         if (busy) {
             item { Text(stringResource(R.string.standby_working)) }
@@ -164,7 +179,9 @@ fun StandbyScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
             AppRow(
                 row = row,
                 enabled = enabled,
+                rootAvailable = rootAvailable,
                 onBucket = { b -> act { repo.setBucket(row.pkg, b) } },
+                onForceBucket = { b -> act { repo.setBucketForced(row, b, rootAvailable) } },
                 onWhitelist = { on -> act { repo.setUserWhitelisted(row.pkg, on) } },
             )
         }
@@ -242,10 +259,13 @@ private fun ActionCard(
 private fun AppRow(
     row: AppStandbyRow,
     enabled: Boolean,
+    rootAvailable: Boolean,
     onBucket: (StandbyBucket) -> Unit,
+    onForceBucket: (StandbyBucket) -> Unit,
     onWhitelist: (Boolean) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var forceMenuOpen by remember { mutableStateOf(false) }
     val current = row.bucket
     val code = row.bucketCode
     // A code outside the seven framework constants (or none at all) is shown raw and stays
@@ -256,6 +276,9 @@ private fun AppRow(
         else -> stringResource(R.string.diag_unknown)
     }
     val changeable = current == null || current.settable
+    val source = StandbyRootPolicy.exemptSource(row)
+    val held = source != ExemptSource.NONE
+    val showForce = rootAvailable && (!changeable || held)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)) {
             LtrMonoText(text = row.pkg, style = MaterialTheme.typography.bodyMedium)
@@ -294,6 +317,41 @@ private fun AppRow(
                     )
                 }
             }
+            if (showForce) {
+                Box {
+                    OutlinedButton(onClick = { forceMenuOpen = true }, enabled = enabled) {
+                        Text(stringResource(R.string.standby_force_bucket))
+                    }
+                    DropdownMenu(
+                        expanded = forceMenuOpen,
+                        onDismissRequest = { forceMenuOpen = false },
+                    ) {
+                        StandbyBucket.SETTABLE.forEach { b ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(bucketRes(b))) },
+                                onClick = {
+                                    forceMenuOpen = false
+                                    onForceBucket(b)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            if (held) {
+                Text(
+                    text = stringResource(sourceRes(source)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!changeable && !rootAvailable) {
+                Text(
+                    text = stringResource(R.string.standby_locked_no_root),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (row.systemWhitelisted) {
                 Text(
                     text = stringResource(R.string.standby_whitelist_system),
@@ -303,6 +361,13 @@ private fun AppRow(
             }
         }
     }
+}
+
+private fun sourceRes(s: ExemptSource): Int = when (s) {
+    ExemptSource.USER_WHITELIST -> R.string.standby_source_user
+    ExemptSource.SYSTEM_WHITELIST -> R.string.standby_source_system
+    ExemptSource.FRAMEWORK -> R.string.standby_source_framework
+    ExemptSource.NONE -> R.string.standby_source_none
 }
 
 private fun bucketRes(b: StandbyBucket?): Int = when (b) {

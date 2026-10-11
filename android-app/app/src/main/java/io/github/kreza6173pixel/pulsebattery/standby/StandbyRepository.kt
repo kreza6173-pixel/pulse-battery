@@ -109,6 +109,63 @@ class StandbyRepository(private val bridge: ExecBridge) {
         }
     }
 
+    /**
+     * Root-only override for packages the system keeps exempt.
+     *
+     * It does exactly three things, in order: drop the removable `user` Doze whitelist entry when
+     * the plan says so, write the bucket, read the bucket back. Success is claimed only when the
+     * read-back equals the target; when the bucket write fails, a dropped whitelist entry is put
+     * back so the device is left as it was found.
+     */
+    fun setBucketForced(
+        row: AppStandbyRow,
+        target: StandbyBucket,
+        rootAvailable: Boolean,
+    ): ActionResult {
+        val pkg = row.pkg
+        val plan = StandbyRootPolicy.plan(row, target, rootAvailable)
+        if (!plan.allowed) {
+            return ActionResult(false, "refused: ${plan.reason}", pkg.takeIf { it.isNotEmpty() }, row.bucket)
+        }
+        val before = readBucket(pkg)
+        var droppedWhitelist = false
+        if (plan.dropUserWhitelist) {
+            val dropped = setUserWhitelisted(pkg, false)
+            if (!dropped.ok) {
+                return ActionResult(false, "whitelist step failed: ${dropped.message}", pkg, before)
+            }
+            droppedWhitelist = true
+        }
+        val command = "am set-standby-bucket " + ShellQuoting.quote(pkg) + " " + target.shellName
+        when (val r = sh(command)) {
+            is Shell.Failed -> {
+                if (droppedWhitelist) setUserWhitelisted(pkg, true)
+                return ActionResult(false, r.message, pkg, before)
+            }
+            is Shell.Done -> if (r.exit != 0) {
+                if (droppedWhitelist) setUserWhitelisted(pkg, true)
+                return ActionResult(
+                    false,
+                    "exit ${r.exit}: " + (r.err + " " + r.out).trim(),
+                    pkg,
+                    before,
+                )
+            }
+        }
+        val after = readBucket(pkg)
+        val note = if (droppedWhitelist) " (user Doze whitelist entry removed)" else ""
+        return if (after == target) {
+            ActionResult(true, "$pkg: ${nameOf(before)} -> ${target.shellName}$note", pkg, before)
+        } else {
+            ActionResult(
+                false,
+                "$pkg: asked ${target.shellName}, system reports ${nameOf(after)}. ${plan.reason}",
+                pkg,
+                before,
+            )
+        }
+    }
+
     fun setUserWhitelisted(pkg: String, on: Boolean): ActionResult {
         if (!StandbyParsers.isValidPackage(pkg)) return ActionResult(false, "refused: $pkg")
         val sign = if (on) "+" else "-"
