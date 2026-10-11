@@ -235,7 +235,7 @@ private fun OpsCard(
                 OutlinedButton(onClick = onReset, enabled = enabled, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.appops_reset))
                 }
-                TextButton(onClick = onClear) { Text(stringResource(R.string.action_close)) }
+                TextButton(onClick = onClear) { Text(stringResource(R.string.appops_close)) }
             }
         }
     }

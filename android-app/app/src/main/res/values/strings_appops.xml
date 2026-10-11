@@ -16,6 +16,7 @@
     <string name="appops_mode_default">default</string>
     <string name="appops_mode_foreground">foreground</string>
     <string name="appops_reset">Reset all three to default</string>
+    <string name="appops_close">Close</string>
     <string name="appops_applied">Applied, confirmed by read-back</string>
     <string name="appops_not_applied">Not applied</string>
     <string name="appops_working">Working…</string>
