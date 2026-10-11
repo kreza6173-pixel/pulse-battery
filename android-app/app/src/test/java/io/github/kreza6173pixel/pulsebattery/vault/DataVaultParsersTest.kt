@@ -41,6 +41,13 @@ class DataVaultParsersTest {
     }
 
     @Test
+    fun theIsolationErrorDoesNotLookLikeAnArchive() {
+        // Exactly what the phone reported before the namespace fix.
+        val out = "tar: chdir '/data/data/app.morphe.manager': No such file or directory"
+        assertTrue(DataVaultParsers.parseArchiveEntries(out).isEmpty())
+    }
+
+    @Test
     fun readsTheDirectoryProbe() {
         assertTrue(DataVaultParsers.probedYes("yes\n"))
         assertFalse(DataVaultParsers.probedYes(""))
@@ -54,6 +61,26 @@ class DataVaultParsersTest {
         assertEquals("obb/com.example", DataVault.obbMember("com.example"))
         assertEquals("/sdcard/Android/data/com.example", DataVault.externalDir("com.example"))
         assertEquals("/sdcard/Android/obb/com.example", DataVault.obbDir("com.example"))
+    }
+
+    @Test
+    fun stagingStaysOnDataNotOnSharedStorage() {
+        // init's mount namespace has no per-user /sdcard view, so the handover file must not
+        // live there.
+        assertTrue(DataVault.STAGING_DIR.startsWith("/data/"))
+        assertFalse(DataVault.STAGING_DIR.startsWith("/sdcard"))
+        assertEquals(
+            "/data/local/tmp/pulse_data/data.tar.gz",
+            DataVault.stagedArchive(DataVault.DATA_ARCHIVE),
+        )
+    }
+
+    @Test
+    fun theNamespaceWrapperPassesTheCommandAsOneArgument() {
+        val wrapped = DataVault.inInitNamespace("tar -czf '/tmp/a.tar.gz' -C '/data/data/x' .")
+        assertTrue(wrapped.startsWith("nsenter --mount=/proc/1/ns/mnt -- sh -c "))
+        // The inner single quotes survive, escaped, so the outer shell cannot reinterpret them.
+        assertTrue(wrapped.contains("'\\''"))
     }
 
     @Test

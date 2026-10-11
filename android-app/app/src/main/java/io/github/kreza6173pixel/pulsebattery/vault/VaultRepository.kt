@@ -18,8 +18,8 @@ data class VaultSnapshot(val apps: List<String>, val vault: List<VaultEntry>)
  * `install-multiple` is an adb client command and does not exist on the device
  * ("Unknown command: install-multiple"); device-side `pm install` accepts base + splits.
  *
- * The APK paths work with the shell uid. The data archive does not: /data/data is readable
- * only as root, so [exportData] and [restoreData] are gated on the real uid of the service.
+ * The APK paths work with the shell uid. The data archive needs root AND a mount namespace
+ * that can see the directory: see [DataAccess].
  */
 class VaultRepository(private val bridge: ExecBridge) {
 
@@ -34,10 +34,43 @@ class VaultRepository(private val bridge: ExecBridge) {
             is ExecOutcome.Completed -> Shell.Done(o.result.exitCode, o.result.stdout, o.result.stderr)
         }
 
+    /** Runs a command in whichever namespace can actually see the app data directory. */
+    private fun shIn(access: DataAccess, command: String, timeoutMs: Int = TIMEOUT_MS): Shell =
+        when (access) {
+            DataAccess.DIRECT -> sh(command, timeoutMs)
+            DataAccess.INIT_NAMESPACE -> sh(DataVault.inInitNamespace(command), timeoutMs)
+            DataAccess.NONE -> Shell.Failed(REFUSE_NO_DATA_VIEW)
+        }
+
     private fun dirOf(pkg: String): String = ShellQuoting.quote("$VAULT_DIR/$pkg")
 
     /** Combined output of one step, for the result card. */
     private fun Shell.Done.text(): String = (out + " " + err).trim()
+
+    private fun probedYes(result: Shell): Boolean = when (result) {
+        is Shell.Failed -> false
+        is Shell.Done -> DataVaultParsers.probedYes(result.out)
+    }
+
+    private fun dirExists(path: String): Boolean =
+        probedYes(sh("[ -d " + ShellQuoting.quote(path) + " ] && echo yes"))
+
+    /**
+     * Decides how, if at all, the app data directory can be reached.
+     *
+     * Cheap: two directory probes. Done per operation rather than cached, because a Shizuku
+     * or Sui restart can land the service in a different namespace.
+     */
+    private fun dataAccess(pkg: String): DataAccess {
+        val probe = "[ -d " + ShellQuoting.quote(DataVault.privateDir(pkg)) + " ] && echo yes"
+        if (probedYes(sh(probe))) return DataAccess.DIRECT
+        if (probedYes(sh(DataVault.inInitNamespace(probe)))) return DataAccess.INIT_NAMESPACE
+        return DataAccess.NONE
+    }
+
+    private fun clearStaging() {
+        sh("rm -rf " + ShellQuoting.quote(DataVault.STAGING_DIR))
+    }
 
     fun load(): DiagResult<VaultSnapshot> {
         val apps = when (val r = sh(APPS_COMMAND)) {
@@ -84,7 +117,8 @@ class VaultRepository(private val bridge: ExecBridge) {
 
     /**
      * Archives the whole private data directory, plus the shared-storage data and obb
-     * directories when they exist. Root only: /data/data is unreadable for the shell uid.
+     * directories when they exist. Root only, and the archive is staged on /data before it
+     * reaches the vault: see [DataVault.STAGING_DIR] for why.
      */
     fun exportData(pkg: String, rootAvailable: Boolean): ActionResult {
         if (!StandbyParsers.isValidPackage(pkg)) {
@@ -101,21 +135,31 @@ class VaultRepository(private val bridge: ExecBridge) {
         }
         if (!installed) return ActionResult(false, "$pkg: not installed, nothing to back up", pkg)
 
+        val access = dataAccess(pkg)
+        if (access == DataAccess.NONE) {
+            return ActionResult(false, "$pkg: $REFUSE_NO_DATA_VIEW", pkg)
+        }
+        log.append("data directory reached: ").append(access.name).append('\n')
+
         // Quiesce first: a database caught mid-write is archived as a corrupt database.
         sh("am force-stop $quoted")
 
-        when (val r = sh("mkdir -p $dir")) {
+        clearStaging()
+        val staging = ShellQuoting.quote(DataVault.STAGING_DIR)
+        val stagedData = ShellQuoting.quote(DataVault.stagedArchive(DataVault.DATA_ARCHIVE))
+        when (val r = sh("mkdir -p $staging")) {
             is Shell.Failed -> return ActionResult(false, r.message, pkg)
             is Shell.Done -> if (r.exit != 0) {
-                return ActionResult(false, "$pkg: mkdir exit ${r.exit}: " + r.text(), pkg)
+                return ActionResult(false, "$pkg: staging mkdir exit ${r.exit}: " + r.text(), pkg)
             }
         }
 
         val privateDir = ShellQuoting.quote(DataVault.privateDir(pkg))
-        val dataArchive = "$dir/${DataVault.DATA_ARCHIVE}"
-        val tarData = "tar -czf $dataArchive -C $privateDir ."
-        when (val r = sh(tarData, DATA_TIMEOUT_MS)) {
-            is Shell.Failed -> return ActionResult(false, r.message, pkg)
+        when (val r = shIn(access, "tar -czf $stagedData -C $privateDir .", DATA_TIMEOUT_MS)) {
+            is Shell.Failed -> {
+                clearStaging()
+                return ActionResult(false, r.message, pkg)
+            }
             is Shell.Done -> {
                 log.append("tar exit ${r.exit}")
                 if (r.text().isNotEmpty()) log.append(": ").append(r.text())
@@ -124,21 +168,50 @@ class VaultRepository(private val bridge: ExecBridge) {
         }
 
         // An archive is only a backup if it has a size AND can be listed.
-        val archivedBytes = when (val r = sh("ls -l $dataArchive")) {
-            is Shell.Failed -> return ActionResult(false, r.message, pkg)
+        val archivedBytes = when (val r = sh("ls -l $stagedData")) {
+            is Shell.Failed -> 0L
             is Shell.Done -> VaultParsers.parseLsFiles(r.out).firstOrNull()?.sizeBytes ?: 0L
         }
         if (archivedBytes <= 0L) {
+            clearStaging()
             return ActionResult(false, "$pkg: the data archive is empty.\n$log", pkg)
         }
-        val entries = when (val r = sh("tar -tzf $dataArchive | head -n 5", LONG_TIMEOUT_MS)) {
-            is Shell.Failed -> return ActionResult(false, r.message, pkg)
+        val entries = when (val r = sh("tar -tzf $stagedData | head -n 5", LONG_TIMEOUT_MS)) {
+            is Shell.Failed -> emptyList()
             is Shell.Done -> DataVaultParsers.parseArchiveEntries(r.out)
         }
         if (entries.isEmpty()) {
+            clearStaging()
             return ActionResult(false, "$pkg: the data archive cannot be listed.\n$log", pkg)
         }
-        log.append("data.tar.gz: $archivedBytes bytes, listable\n")
+
+        // Handover to shared storage happens in the ordinary namespace, which is the only one
+        // with the per-user /sdcard view.
+        val vaultData = "$dir/${DataVault.DATA_ARCHIVE}"
+        when (val r = sh("mkdir -p $dir && cp $stagedData $vaultData", LONG_TIMEOUT_MS)) {
+            is Shell.Failed -> {
+                clearStaging()
+                return ActionResult(false, r.message, pkg)
+            }
+            is Shell.Done -> if (r.exit != 0) {
+                clearStaging()
+                return ActionResult(false, "$pkg: copy to vault exit ${r.exit}: " + r.text(), pkg)
+            }
+        }
+        clearStaging()
+
+        val vaultBytes = when (val r = sh("ls -l $vaultData")) {
+            is Shell.Failed -> 0L
+            is Shell.Done -> VaultParsers.parseLsFiles(r.out).firstOrNull()?.sizeBytes ?: 0L
+        }
+        if (vaultBytes != archivedBytes) {
+            return ActionResult(
+                false,
+                "$pkg: archive is $archivedBytes bytes but $vaultBytes landed in the vault.\n$log",
+                pkg,
+            )
+        }
+        log.append("${DataVault.DATA_ARCHIVE}: $vaultBytes bytes, listable\n")
 
         // External members are optional: a missing one must not fail the whole backup.
         val members = buildList {
@@ -159,7 +232,7 @@ class VaultRepository(private val bridge: ExecBridge) {
                 is Shell.Failed -> 0L
                 is Shell.Done -> VaultParsers.parseLsFiles(r.out).firstOrNull()?.sizeBytes ?: 0L
             }
-            log.append("external.tar.gz: $externalBytes bytes\n")
+            log.append("${DataVault.EXTERNAL_ARCHIVE}: $externalBytes bytes\n")
         }
 
         return ActionResult(true, "$pkg -> $VAULT_DIR/$pkg\n$log".trim(), pkg)
@@ -180,12 +253,12 @@ class VaultRepository(private val bridge: ExecBridge) {
         if (!rootAvailable) return ActionResult(false, REFUSE_NO_ROOT, pkg)
         val quoted = ShellQuoting.quote(pkg)
         val dir = dirOf(pkg)
-        val dataArchive = "$dir/${DataVault.DATA_ARCHIVE}"
+        val vaultData = "$dir/${DataVault.DATA_ARCHIVE}"
         val privateDir = ShellQuoting.quote(DataVault.privateDir(pkg))
         val log = StringBuilder()
 
-        val archivedBytes = when (val r = sh("ls -l $dataArchive")) {
-            is Shell.Failed -> return ActionResult(false, r.message, pkg)
+        val archivedBytes = when (val r = sh("ls -l $vaultData")) {
+            is Shell.Failed -> 0L
             is Shell.Done -> VaultParsers.parseLsFiles(r.out).firstOrNull()?.sizeBytes ?: 0L
         }
         if (archivedBytes <= 0L) {
@@ -198,16 +271,47 @@ class VaultRepository(private val bridge: ExecBridge) {
         }
         if (!installed) return ActionResult(false, "$pkg: $REFUSE_NOT_INSTALLED", pkg)
 
+        val access = dataAccess(pkg)
+        if (access == DataAccess.NONE) {
+            return ActionResult(false, "$pkg: $REFUSE_NO_DATA_VIEW", pkg)
+        }
+        log.append("data directory reached: ").append(access.name).append('\n')
+
         sh("am force-stop $quoted")
 
-        val uid = when (val r = sh("stat -c %u $privateDir")) {
+        // Stage on /data first: init's namespace cannot see the per-user /sdcard view.
+        clearStaging()
+        val staging = ShellQuoting.quote(DataVault.STAGING_DIR)
+        val stagedData = ShellQuoting.quote(DataVault.stagedArchive(DataVault.DATA_ARCHIVE))
+        when (val r = sh("mkdir -p $staging && cp $vaultData $stagedData", LONG_TIMEOUT_MS)) {
             is Shell.Failed -> return ActionResult(false, r.message, pkg)
+            is Shell.Done -> if (r.exit != 0) {
+                clearStaging()
+                return ActionResult(false, "$pkg: staging copy exit ${r.exit}: " + r.text(), pkg)
+            }
+        }
+
+        val uid = when (val r = shIn(access, "stat -c %u $privateDir")) {
+            is Shell.Failed -> null
             is Shell.Done -> DataVaultParsers.parseUid(r.out)
-        } ?: return ActionResult(false, "$pkg: could not read the owner uid of the data directory", pkg)
+        }
+        if (uid == null) {
+            clearStaging()
+            return ActionResult(
+                false,
+                "$pkg: could not read the owner uid of the data directory",
+                pkg,
+            )
+        }
         log.append("owner uid before: $uid\n")
 
-        val extractOk = when (val r = sh("tar -xzf $dataArchive -C $privateDir", DATA_TIMEOUT_MS)) {
-            is Shell.Failed -> return ActionResult(false, r.message, pkg)
+        val extractOk = when (
+            val r = shIn(access, "tar -xzf $stagedData -C $privateDir", DATA_TIMEOUT_MS)
+        ) {
+            is Shell.Failed -> {
+                log.append("extract failed: ").append(r.message).append('\n')
+                false
+            }
             is Shell.Done -> {
                 log.append("extract exit ${r.exit}")
                 if (r.text().isNotEmpty()) log.append(": ").append(r.text())
@@ -216,7 +320,7 @@ class VaultRepository(private val bridge: ExecBridge) {
             }
         }
 
-        val chownOk = when (val r = sh("chown -R $uid:$uid $privateDir", LONG_TIMEOUT_MS)) {
+        val chownOk = when (val r = shIn(access, "chown -R $uid:$uid $privateDir", LONG_TIMEOUT_MS)) {
             is Shell.Failed -> false
             is Shell.Done -> {
                 log.append("chown exit ${r.exit}\n")
@@ -225,7 +329,7 @@ class VaultRepository(private val bridge: ExecBridge) {
         }
 
         // Without the right SELinux labels the app cannot read its own files.
-        val relabelOk = when (val r = sh("restorecon -RF $privateDir", LONG_TIMEOUT_MS)) {
+        val relabelOk = when (val r = shIn(access, "restorecon -RF $privateDir", LONG_TIMEOUT_MS)) {
             is Shell.Failed -> false
             is Shell.Done -> {
                 log.append("restorecon exit ${r.exit}")
@@ -236,28 +340,29 @@ class VaultRepository(private val bridge: ExecBridge) {
         }
         if (!relabelOk) log.append(RELABEL_WARNING).append('\n')
 
-        if (dirExists("$VAULT_DIR/$pkg") ) {
-            val externalArchive = "$dir/${DataVault.EXTERNAL_ARCHIVE}"
-            val externalBytes = when (val r = sh("ls -l $externalArchive")) {
-                is Shell.Failed -> 0L
-                is Shell.Done -> VaultParsers.parseLsFiles(r.out).firstOrNull()?.sizeBytes ?: 0L
-            }
-            if (externalBytes > 0L) {
-                val root = ShellQuoting.quote(DataVault.EXTERNAL_ROOT)
-                when (val r = sh("tar -xzf $externalArchive -C $root", DATA_TIMEOUT_MS)) {
-                    is Shell.Failed -> log.append("external: ").append(r.message).append('\n')
-                    is Shell.Done -> log.append("external extract exit ${r.exit}\n")
-                }
+        clearStaging()
+
+        // Shared storage is restored in the ordinary namespace, which is the one that has it.
+        val externalArchive = "$dir/${DataVault.EXTERNAL_ARCHIVE}"
+        val externalBytes = when (val r = sh("ls -l $externalArchive")) {
+            is Shell.Failed -> 0L
+            is Shell.Done -> VaultParsers.parseLsFiles(r.out).firstOrNull()?.sizeBytes ?: 0L
+        }
+        if (externalBytes > 0L) {
+            val root = ShellQuoting.quote(DataVault.EXTERNAL_ROOT)
+            when (val r = sh("tar -xzf $externalArchive -C $root", DATA_TIMEOUT_MS)) {
+                is Shell.Failed -> log.append("external: ").append(r.message).append('\n')
+                is Shell.Done -> log.append("external extract exit ${r.exit}\n")
             }
         }
 
         sh("am force-stop $quoted")
 
-        val count = when (val r = sh("ls -a $privateDir | wc -l")) {
+        val count = when (val r = shIn(access, "ls -a $privateDir | wc -l")) {
             is Shell.Failed -> null
             is Shell.Done -> DataVaultParsers.parseCount(r.out)
         }
-        val uidAfter = when (val r = sh("stat -c %u $privateDir")) {
+        val uidAfter = when (val r = shIn(access, "stat -c %u $privateDir")) {
             is Shell.Failed -> null
             is Shell.Done -> DataVaultParsers.parseUid(r.out)
         }
@@ -323,12 +428,6 @@ class VaultRepository(private val bridge: ExecBridge) {
         }
     }
 
-    private fun dirExists(path: String): Boolean =
-        when (val r = sh("[ -d " + ShellQuoting.quote(path) + " ] && echo yes")) {
-            is Shell.Failed -> false
-            is Shell.Done -> DataVaultParsers.probedYes(r.out)
-        }
-
     companion object {
         const val VAULT_DIR = "/sdcard/Download/PulseVault"
 
@@ -339,6 +438,11 @@ class VaultRepository(private val bridge: ExecBridge) {
         const val REFUSE_NOT_INSTALLED =
             "not installed. Restore the APK first: app data belongs to a uid that only exists " +
                 "while the app is installed."
+
+        const val REFUSE_NO_DATA_VIEW =
+            "the data directory is not visible from this process, not even through init's " +
+                "mount namespace. Android 11 and newer isolate app data per mount namespace, " +
+                "and nsenter is what gets past it. Nothing was changed."
 
         const val RELABEL_WARNING =
             "SELinux labels were not restored, so the app will probably crash on launch. " +
