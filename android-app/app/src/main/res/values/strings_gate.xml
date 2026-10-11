@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gate_title">Charge gate</string>
+    <string name="gate_state_open">Charger input reaches the battery</string>
+    <string name="gate_state_paused">Charging is held off by this app</string>
+    <string name="gate_state_unknown">The node could not be read on this device</string>
+    <string name="gate_level">Level now: ⁦%1$d %%⁩</string>
+    <string name="gate_current">Current now: ⁦%1$d mA⁩</string>
+    <string name="gate_node_value">%1$s = %2$s</string>
+    <string name="gate_status_value">status = %1$s</string>
+    <string name="gate_pause">Pause charging now</string>
+    <string name="gate_resume">Resume charging</string>
+    <string name="gate_needs_root">Pausing charging writes a kernel node that the shell uid may not touch. Start the privileged service as root to use this.</string>
+    <string name="gate_paused_warning">While charging is paused the phone stays plugged in without charging. Resume it here before you unplug or reboot, or the battery will keep draining on the charger.</string>
+    <string name="gate_conflict">The ROM battery protection is active as well. Two mechanisms aiming at the same hardware will fight each other, so pick one.</string>
+    <string name="gate_manual_note">This is a manual switch. Nothing is scheduled and nothing runs in the background.</string>
+    <string name="gate_reset_stats">Reset battery statistics</string>
+    <string name="gate_reset_hint">Clears the collected battery statistics so the next overnight drain report starts clean. Needs no root and changes no hardware state.</string>
+    <string name="gate_applied">Applied and verified</string>
+    <string name="gate_not_applied">Not applied</string>
+    <string name="gate_working">Working…</string>
+</resources>
