@@ -1,5 +1,10 @@
 package io.github.kreza6173pixel.pulsebattery.ui.charge
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +18,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,11 +28,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.kreza6173pixel.pulsebattery.R
 import io.github.kreza6173pixel.pulsebattery.charge.ChargeActionResult
+import io.github.kreza6173pixel.pulsebattery.charge.ChargeLimitPolicy
+import io.github.kreza6173pixel.pulsebattery.charge.ChargeLimitService
+import io.github.kreza6173pixel.pulsebattery.charge.ChargeLimitSettings
+import io.github.kreza6173pixel.pulsebattery.charge.ChargeLimitStore
 import io.github.kreza6173pixel.pulsebattery.charge.ChargeMode
 import io.github.kreza6173pixel.pulsebattery.charge.ChargeRepository
 import io.github.kreza6173pixel.pulsebattery.charge.ChargeState
@@ -35,6 +47,9 @@ import io.github.kreza6173pixel.pulsebattery.charge.GateActionResult
 import io.github.kreza6173pixel.pulsebattery.charge.GateRepository
 import io.github.kreza6173pixel.pulsebattery.charge.GateSnapshot
 import io.github.kreza6173pixel.pulsebattery.charge.GateState
+import io.github.kreza6173pixel.pulsebattery.charge.LIMIT_MAX
+import io.github.kreza6173pixel.pulsebattery.charge.LIMIT_MIN
+import io.github.kreza6173pixel.pulsebattery.charge.MIN_HYSTERESIS
 import io.github.kreza6173pixel.pulsebattery.charge.NODE_INPUT_SUSPEND
 import io.github.kreza6173pixel.pulsebattery.diag.DiagResult
 import io.github.kreza6173pixel.pulsebattery.exec.ConnectionState
@@ -46,11 +61,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** Step the thresholds move by, so the two buttons stay useful without a slider. */
+private const val THRESHOLD_STEP = 5
+
 /**
- * Charging controls, in order of immediacy: the kernel charge gate first, then the ROM modes.
+ * Charging controls, in order of immediacy: the automatic limit, then the manual gate, then
+ * the ROM modes.
  *
- * The gate needs root and is disabled with a reason without it. The ROM modes need only shell
- * access, so they stay usable in both access modes.
+ * The limit and the gate both write one kernel node and need root. The ROM modes need only
+ * shell access, so they stay usable in both access modes.
  */
 @Composable
 fun ChargeScreen(
@@ -58,9 +77,13 @@ fun ChargeScreen(
     rootAvailable: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val modeRepo = remember(bridge) { ChargeRepository(bridge) }
     val gateRepo = remember(bridge, rootAvailable) { GateRepository(bridge, rootAvailable) }
+    val limitStore = remember(context) { ChargeLimitStore(context) }
     val scope = rememberCoroutineScope()
+
+    var limit by remember { mutableStateOf(limitStore.read()) }
     var modeProbe by remember { mutableStateOf<DiagResult<ChargeState>?>(null) }
     var gateProbe by remember { mutableStateOf<DiagResult<GateSnapshot>?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -69,10 +92,32 @@ fun ChargeScreen(
     var reloadTick by remember { mutableStateOf(0) }
     val connected = bridge.connectionState == ConnectionState.CONNECTED
 
+    // The service runs either way, but a foreground service with no visible notification is
+    // exactly the hidden background work this app promises not to do.
+    val notificationRequest = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+
     LaunchedEffect(connected, reloadTick) {
         if (!connected) return@LaunchedEffect
         gateProbe = withContext(Dispatchers.IO) { gateRepo.read() }
         modeProbe = withContext(Dispatchers.IO) { modeRepo.read() }
+    }
+
+    fun saveLimit(next: ChargeLimitSettings) {
+        val clean = limitStore.write(next)
+        limit = clean
+        if (clean.enabled) {
+            val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            if (needsPermission) {
+                notificationRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            ChargeLimitService.start(context)
+        } else {
+            ChargeLimitService.stop(context)
+        }
     }
 
     fun applyMode(target: ChargeMode) {
@@ -117,6 +162,15 @@ fun ChargeScreen(
         }
         if (busy) {
             item { Text(stringResource(R.string.gate_working)) }
+        }
+
+        item {
+            LimitCard(
+                settings = limit,
+                rootAvailable = rootAvailable,
+                romProtectionActive = state?.mode == ChargeMode.PROTECTED,
+                onChange = { saveLimit(it) },
+            )
         }
 
         if (gate != null) {
@@ -197,6 +251,124 @@ fun ChargeScreen(
                 LtrMonoText((gateRaw + "\n" + modeRaw).trim())
                 CopyShareButtons(gateRaw + "\n" + modeRaw)
             }
+        }
+    }
+}
+
+@Composable
+private fun LimitCard(
+    settings: ChargeLimitSettings,
+    rootAvailable: Boolean,
+    romProtectionActive: Boolean,
+    onChange: (ChargeLimitSettings) -> Unit,
+) {
+    val resumeRange = ChargeLimitPolicy.resumeRange(settings.limitPercent)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.limit_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.limit_enable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = settings.enabled,
+                    onCheckedChange = { onChange(settings.copy(enabled = it)) },
+                    enabled = rootAvailable,
+                )
+            }
+
+            StepperRow(
+                label = stringResource(R.string.limit_stop_at, settings.limitPercent),
+                enabled = rootAvailable,
+                canDecrease = settings.limitPercent - THRESHOLD_STEP >= LIMIT_MIN,
+                canIncrease = settings.limitPercent + THRESHOLD_STEP <= LIMIT_MAX,
+                onDecrease = {
+                    onChange(settings.copy(limitPercent = settings.limitPercent - THRESHOLD_STEP))
+                },
+                onIncrease = {
+                    onChange(settings.copy(limitPercent = settings.limitPercent + THRESHOLD_STEP))
+                },
+            )
+            StepperRow(
+                label = stringResource(R.string.limit_resume_at, settings.resumePercent),
+                enabled = rootAvailable,
+                canDecrease = settings.resumePercent - THRESHOLD_STEP >= resumeRange.first,
+                canIncrease = settings.resumePercent + THRESHOLD_STEP <= resumeRange.last,
+                onDecrease = {
+                    onChange(settings.copy(resumePercent = settings.resumePercent - THRESHOLD_STEP))
+                },
+                onIncrease = {
+                    onChange(settings.copy(resumePercent = settings.resumePercent + THRESHOLD_STEP))
+                },
+            )
+            Text(
+                text = stringResource(R.string.limit_range_note, MIN_HYSTERESIS),
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.limit_restore_on_boot),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = settings.restoreOnBoot,
+                    onCheckedChange = { onChange(settings.copy(restoreOnBoot = it)) },
+                    enabled = rootAvailable,
+                )
+            }
+
+            if (!rootAvailable) {
+                Text(
+                    text = stringResource(R.string.gate_needs_root),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (romProtectionActive) {
+                Text(
+                    text = stringResource(R.string.limit_rom_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            Text(
+                text = stringResource(R.string.limit_service_note),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StepperRow(
+    label: String,
+    enabled: Boolean,
+    canDecrease: Boolean,
+    canIncrease: Boolean,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedButton(onClick = onDecrease, enabled = enabled && canDecrease) {
+            Text(stringResource(R.string.limit_decrease))
+        }
+        OutlinedButton(onClick = onIncrease, enabled = enabled && canIncrease) {
+            Text(stringResource(R.string.limit_increase))
         }
     }
 }

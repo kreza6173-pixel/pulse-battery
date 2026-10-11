@@ -14,4 +14,15 @@
     <string name="limit_notif_plugged">plugged in</string>
     <string name="limit_notif_unplugged">on battery</string>
     <string name="limit_notif_thresholds">stop ⁦%1$d⁩, resume ⁦%2$d⁩</string>
+
+    <string name="limit_title">Automatic charge limit</string>
+    <string name="limit_enable">Keep the battery at a chosen level</string>
+    <string name="limit_stop_at">Stop charging at ⁦%1$d %%⁩</string>
+    <string name="limit_resume_at">Resume charging at or below ⁦%1$d %%⁩</string>
+    <string name="limit_decrease">Less</string>
+    <string name="limit_increase">More</string>
+    <string name="limit_restore_on_boot">Re-apply after a reboot</string>
+    <string name="limit_service_note">This is the only part of the app that keeps running in the background. While it is on you will see a permanent notification, and it stops itself as soon as it has nothing left to do.</string>
+    <string name="limit_rom_note">Turn the ROM battery protection to Charge fully while using this, or the two will fight over the same hardware.</string>
+    <string name="limit_range_note">The resume level is always kept at least ⁦%1$d⁩ percent below the stop level, so charging cannot switch on and off repeatedly.</string>
 </resources>
