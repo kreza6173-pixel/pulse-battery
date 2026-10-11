@@ -38,6 +38,7 @@ fun HomeScreen(
     onOpenDiagnostics: () -> Unit = {},
     onOpenStandby: () -> Unit = {},
     onOpenCharge: () -> Unit = {},
+    onOpenHealth: () -> Unit = {},
     onOpenVault: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
 ) {
@@ -58,6 +59,7 @@ fun HomeScreen(
         if (state == ShizukuState.READY) {
             FeatureButton(R.string.home_open_report, onOpenReport)
             FeatureButton(R.string.home_open_charge, onOpenCharge)
+            FeatureButton(R.string.home_open_health, onOpenHealth)
             FeatureButton(R.string.home_open_diagnostics, onOpenDiagnostics)
             FeatureButton(R.string.home_open_standby, onOpenStandby)
             FeatureButton(R.string.home_open_vault, onOpenVault)
