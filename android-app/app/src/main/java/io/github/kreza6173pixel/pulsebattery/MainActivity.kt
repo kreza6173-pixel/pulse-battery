@@ -27,6 +27,7 @@ import io.github.kreza6173pixel.pulsebattery.exec.ExecBridge
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuRuntime
 import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuState
 import io.github.kreza6173pixel.pulsebattery.ui.about.AboutScreen
+import io.github.kreza6173pixel.pulsebattery.ui.appops.AppOpsScreen
 import io.github.kreza6173pixel.pulsebattery.ui.charge.ChargeScreen
 import io.github.kreza6173pixel.pulsebattery.ui.console.ConsoleScreen
 import io.github.kreza6173pixel.pulsebattery.ui.cpu.CpuScreen
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Screen {
-    HOME, REPORT, CONSOLE, DIAGNOSTICS, STANDBY, CHARGE, HEALTH, CPU, VAULT, ABOUT
+    HOME, REPORT, CONSOLE, DIAGNOSTICS, STANDBY, APPOPS, CHARGE, HEALTH, CPU, VAULT, ABOUT
 }
 
 // TopAppBar is still @ExperimentalMaterial3Api in material3 1.4.0.
@@ -119,6 +120,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                                 Screen.CONSOLE -> R.string.console_title
                                 Screen.DIAGNOSTICS -> R.string.diag_title
                                 Screen.STANDBY -> R.string.standby_title
+                                Screen.APPOPS -> R.string.appops_title
                                 Screen.CHARGE -> R.string.charge_title
                                 Screen.HEALTH -> R.string.health_title
                                 Screen.CPU -> R.string.cpu_title
@@ -147,6 +149,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                 onOpenConsole = { screen = Screen.CONSOLE },
                 onOpenDiagnostics = { screen = Screen.DIAGNOSTICS },
                 onOpenStandby = { screen = Screen.STANDBY },
+                onOpenAppOps = { screen = Screen.APPOPS },
                 onOpenCharge = { screen = Screen.CHARGE },
                 onOpenHealth = { screen = Screen.HEALTH },
                 onOpenCpu = { screen = Screen.CPU },
@@ -161,6 +164,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                 rootAvailable = rootAvailable,
                 modifier = contentModifier,
             )
+            Screen.APPOPS -> AppOpsScreen(bridge = bridge, modifier = contentModifier)
             Screen.CHARGE -> ChargeScreen(
                 bridge = bridge,
                 rootAvailable = rootAvailable,

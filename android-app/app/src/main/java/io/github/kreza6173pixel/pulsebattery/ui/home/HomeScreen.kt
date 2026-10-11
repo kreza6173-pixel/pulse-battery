@@ -37,6 +37,7 @@ fun HomeScreen(
     onOpenConsole: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
     onOpenStandby: () -> Unit = {},
+    onOpenAppOps: () -> Unit = {},
     onOpenCharge: () -> Unit = {},
     onOpenHealth: () -> Unit = {},
     onOpenCpu: () -> Unit = {},
@@ -64,6 +65,7 @@ fun HomeScreen(
             FeatureButton(R.string.home_open_cpu, onOpenCpu)
             FeatureButton(R.string.home_open_diagnostics, onOpenDiagnostics)
             FeatureButton(R.string.home_open_standby, onOpenStandby)
+            FeatureButton(R.string.home_open_appops, onOpenAppOps)
             FeatureButton(R.string.home_open_vault, onOpenVault)
             OutlinedButton(
                 onClick = onOpenConsole,
