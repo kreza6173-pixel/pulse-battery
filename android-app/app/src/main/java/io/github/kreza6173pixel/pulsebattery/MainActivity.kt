@@ -102,6 +102,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
     // Feature screens need the user service and fall back to home when not READY.
     // About does not need Shizuku, so it stays reachable in every state.
     val shown = if (ready || screen == Screen.ABOUT) screen else Screen.HOME
+    val rootAvailable = runtime.accessMode.rootAvailable
 
     BackHandler(enabled = shown != Screen.HOME) { screen = Screen.HOME }
 
@@ -153,10 +154,14 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
             Screen.CONSOLE -> ConsoleScreen(bridge = bridge, modifier = contentModifier)
             Screen.DIAGNOSTICS -> DiagnosticsScreen(bridge = bridge, modifier = contentModifier)
             Screen.STANDBY -> StandbyScreen(bridge = bridge, modifier = contentModifier)
-            Screen.CHARGE -> ChargeScreen(bridge = bridge, modifier = contentModifier)
+            Screen.CHARGE -> ChargeScreen(
+                bridge = bridge,
+                rootAvailable = rootAvailable,
+                modifier = contentModifier,
+            )
             Screen.HEALTH -> HealthScreen(
                 bridge = bridge,
-                rootAvailable = runtime.accessMode.rootAvailable,
+                rootAvailable = rootAvailable,
                 modifier = contentModifier,
             )
             Screen.VAULT -> VaultScreen(bridge = bridge, modifier = contentModifier)
