@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_health">Battery health</string>
+    <string name="health_title">PULSE // HEALTH</string>
+    <string name="health_summary">Health summary</string>
+    <string name="health_percent">State of health: ⁦%1$.1f %%⁩</string>
+    <string name="health_capacity_pair">Full charge ⁦%1$d mAh⁩ of ⁦%2$d mAh⁩ by design</string>
+    <string name="health_cycles">Charge cycles: ⁦%1$d⁩</string>
+    <string name="health_level">Level now: ⁦%1$d %%⁩</string>
+    <string name="health_temp">Temperature: ⁦%1$.1f °C⁩</string>
+    <string name="health_current">Current now: ⁦%1$d mA⁩</string>
+    <string name="health_current_hint">A negative current means the battery is discharging. Near zero while plugged in means charging is being held.</string>
+    <string name="health_nodes">Kernel nodes (⁦%1$d⁩ of ⁦%2$d⁩ readable)</string>
+    <string name="health_node_unreadable">not readable by this uid</string>
+    <string name="health_root_hint">Some of these nodes are refused for the shell uid on this ROM. Running the service as root makes them readable.</string>
+    <string name="health_read_only">This screen only reads. It never changes charging or any other hardware state.</string>
+    <string name="health_raw">Probe output</string>
+    <string name="health_nothing">None of the nodes could be read on this device.</string>
+</resources>
