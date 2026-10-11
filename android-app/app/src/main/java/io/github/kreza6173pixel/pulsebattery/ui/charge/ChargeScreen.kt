@@ -69,6 +69,9 @@ fun ChargeScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
 
     val current = probe
     val state = (current as? DiagResult.Ok)?.value
+    // Taken once, outside the branches: inside them the compiler cannot narrow the nullable
+    // result, and a non-null assertion would only hide that.
+    val rawOutput = current?.raw.orEmpty()
     val enabled = connected && !busy
     val action = lastAction
 
@@ -123,8 +126,8 @@ fun ChargeScreen(bridge: ExecBridge, modifier: Modifier = Modifier) {
                         text = stringResource(R.string.charge_raw),
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    LtrMonoText(current.raw.trim())
-                    CopyShareButtons(current.raw)
+                    LtrMonoText(rawOutput.trim())
+                    CopyShareButtons(rawOutput)
                 }
             }
         }

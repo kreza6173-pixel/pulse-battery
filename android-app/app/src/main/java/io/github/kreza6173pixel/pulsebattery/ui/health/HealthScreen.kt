@@ -63,6 +63,8 @@ fun HealthScreen(
 
     val current = probe
     val health = (current as? DiagResult.Ok)?.value
+    // Taken once, outside the branches, for the same reason as on the charge screen.
+    val rawOutput = current?.raw.orEmpty()
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -125,7 +127,7 @@ fun HealthScreen(
                         text = stringResource(R.string.health_raw),
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    CopyShareButtons(current!!.raw)
+                    CopyShareButtons(rawOutput)
                 }
             }
         }
