@@ -29,6 +29,7 @@ import io.github.kreza6173pixel.pulsebattery.shizuku.ShizukuState
 import io.github.kreza6173pixel.pulsebattery.ui.about.AboutScreen
 import io.github.kreza6173pixel.pulsebattery.ui.charge.ChargeScreen
 import io.github.kreza6173pixel.pulsebattery.ui.console.ConsoleScreen
+import io.github.kreza6173pixel.pulsebattery.ui.cpu.CpuScreen
 import io.github.kreza6173pixel.pulsebattery.ui.diag.DiagnosticsScreen
 import io.github.kreza6173pixel.pulsebattery.ui.health.HealthScreen
 import io.github.kreza6173pixel.pulsebattery.ui.home.HomeScreen
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Screen {
-    HOME, REPORT, CONSOLE, DIAGNOSTICS, STANDBY, CHARGE, HEALTH, VAULT, ABOUT
+    HOME, REPORT, CONSOLE, DIAGNOSTICS, STANDBY, CHARGE, HEALTH, CPU, VAULT, ABOUT
 }
 
 // TopAppBar is still @ExperimentalMaterial3Api in material3 1.4.0.
@@ -120,6 +121,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                                 Screen.STANDBY -> R.string.standby_title
                                 Screen.CHARGE -> R.string.charge_title
                                 Screen.HEALTH -> R.string.health_title
+                                Screen.CPU -> R.string.cpu_title
                                 Screen.VAULT -> R.string.vault_title
                                 Screen.ABOUT -> R.string.about_title
                             }
@@ -147,6 +149,7 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                 onOpenStandby = { screen = Screen.STANDBY },
                 onOpenCharge = { screen = Screen.CHARGE },
                 onOpenHealth = { screen = Screen.HEALTH },
+                onOpenCpu = { screen = Screen.CPU },
                 onOpenVault = { screen = Screen.VAULT },
                 onOpenAbout = { screen = Screen.ABOUT },
             )
@@ -160,6 +163,11 @@ private fun AppRoot(runtime: ShizukuRuntime, bridge: ExecBridge) {
                 modifier = contentModifier,
             )
             Screen.HEALTH -> HealthScreen(
+                bridge = bridge,
+                rootAvailable = rootAvailable,
+                modifier = contentModifier,
+            )
+            Screen.CPU -> CpuScreen(
                 bridge = bridge,
                 rootAvailable = rootAvailable,
                 modifier = contentModifier,

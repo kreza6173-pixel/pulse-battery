@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_cpu">CPU by app</string>
+    <string name="cpu_title">PULSE // CPU</string>
+    <string name="cpu_read_only">Read straight from the kernel uid statistics. This screen only reads.</string>
+    <string name="cpu_total">Total recorded CPU time: ⁦%1$s⁩</string>
+    <string name="cpu_rows">Apps by CPU time (⁦%1$d⁩)</string>
+    <string name="cpu_uid">uid ⁦%1$d⁩</string>
+    <string name="cpu_row_total">⁦%1$s⁩ total</string>
+    <string name="cpu_row_split">user ⁦%1$s⁩ · system ⁦%2$s⁩</string>
+    <string name="cpu_row_raw">raw ⁦%1$d⁩ + ⁦%2$d⁩ microseconds</string>
+    <string name="cpu_no_package">no installed package on this uid</string>
+    <string name="cpu_shared_uid">⁦%1$d⁩ packages share this uid</string>
+    <string name="cpu_hidden">⁦%1$d⁩ further uids account for ⁦%2$s⁩ and are not listed.</string>
+    <string name="cpu_root_hint">This kernel node is usually refused for the shell uid. Start the privileged service as root to read it.</string>
+    <string name="cpu_raw">Probe output</string>
+</resources>
